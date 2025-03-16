@@ -9,19 +9,19 @@ class TestAPI(unittest.TestCase):
 
     def setUp(self):
         """Reinicia os dados antes de cada teste (se a API permitir)."""
-        # Criar professores
+        #cria prof pra teste
         response1 = self.app.post('/professores', json={"nome": "João", "idade": 30, "materia": "Matemática"})
         response2 = self.app.post('/professores', json={"nome": "Maria", "idade": 40, "materia": "História"})
         self.professor_id1 = response1.json.get("id")
         self.professor_id2 = response2.json.get("id")
 
-        # Criar turmas
+        #cria turma pra teste
         response3 = self.app.post('/turmas', json={"descricao": "Turma B", "professor_id": self.professor_id1, "ativo": True})
         response4 = self.app.post('/turmas', json={"descricao": "Turma C", "professor_id": self.professor_id2, "ativo": False})
         self.turma_id1 = response3.json.get("id")
         self.turma_id2 = response4.json.get("id")
 
-        # Criar alunos
+        #cria alunos pa teste
         response5 = self.app.post('/alunos', json={"nome": "José", "idade": 20, "turma_id": self.turma_id1,
                                                    "data_nascimento": "2003-04-15", "nota_primeiro_semestre": 7.5,
                                                    "nota_segundo_semestre": 8.0, "media_final": 7.75})
@@ -31,7 +31,7 @@ class TestAPI(unittest.TestCase):
         self.aluno_id1 = response5.json.get("id")
         self.aluno_id2 = response6.json.get("id")
 
-    # Testes de professores
+#tst prof
     def test_listar_professores(self):
         response = self.app.get('/professores')
         self.assertEqual(response.status_code, 200)
@@ -60,7 +60,7 @@ class TestAPI(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn("mensagem", response.json)
 
-    # Testes de turmas
+#tst turmas
     def test_listar_turmas(self):
         response = self.app.get('/turmas')
         self.assertEqual(response.status_code, 200)
@@ -87,7 +87,7 @@ class TestAPI(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn("mensagem", response.json)
 
-    # Testes de alunos
+#tst alunos
     def test_listar_alunos(self):
         response = self.app.get('/alunos')
         self.assertEqual(response.status_code, 200)
