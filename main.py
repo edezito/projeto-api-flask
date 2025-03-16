@@ -2,17 +2,11 @@ from flask import Flask, jsonify, request
 
 app = Flask(__name__)
 
-professores = [
+professores = []
+turmas = []
+alunos = []
 
-]
-turmas = [
-
-]
-alunos = [
-
-]
-
-# rotas prof
+#rotas prof
 @app.route('/professores', methods=['GET'])
 def listar_professores():
     return jsonify(professores)
@@ -28,7 +22,9 @@ def criar_professor():
     novo_professor = {
         "id": len(professores) + 1,
         "nome": dados["nome"],
-        "disciplina": dados["disciplina"]
+        "idade": dados["idade"],
+        "materia": dados["materia"],
+        "observacoes": dados.get("observacoes", "")
     }
     professores.append(novo_professor)
     return jsonify(novo_professor), 201
@@ -42,9 +38,12 @@ def atualizar_professor(id_professor):
     dados = request.json
     professor.update({
         "nome": dados.get("nome", professor["nome"]),
-        "disciplina": dados.get("disciplina", professor["disciplina"])
+        "idade": dados.get("idade", professor["idade"]),
+        "materia": dados.get("materia", professor["materia"]),
+        "observacoes": dados.get("observacoes", professor.get("observacoes", ""))
     })
     return jsonify(professor)
+
 
 @app.route('/professores/<int:id_professor>', methods=['DELETE'])
 def excluir_professor(id_professor):
@@ -52,7 +51,7 @@ def excluir_professor(id_professor):
     professores = [p for p in professores if p["id"] != id_professor]
     return jsonify({"mensagem": "Professor removido"}), 200
 
-#turmas
+#rotas turma
 @app.route('/turmas', methods=['GET'])
 def listar_turmas():
     return jsonify(turmas)
@@ -67,8 +66,9 @@ def criar_turma():
     dados = request.json
     nova_turma = {
         "id": len(turmas) + 1,
-        "nome": dados["nome"],
-        "turno": dados["turno"]
+        "descricao": dados["descricao"],
+        "professor_id": dados["professor_id"],
+        "ativo": dados["ativo"]
     }
     turmas.append(nova_turma)
     return jsonify(nova_turma), 201
@@ -81,8 +81,9 @@ def atualizar_turma(id_turma):
 
     dados = request.json
     turma.update({
-        "nome": dados.get("nome", turma["nome"]),
-        "turno": dados.get("turno", turma["turno"])
+        "descricao": dados.get("descricao", turma["descricao"]),
+        "professor_id": dados.get("professor_id", turma["professor_id"]),
+        "ativo": dados.get("ativo", turma["ativo"])
     })
     return jsonify(turma)
 
@@ -92,7 +93,7 @@ def excluir_turma(id_turma):
     turmas = [t for t in turmas if t["id"] != id_turma]
     return jsonify({"mensagem": "Turma removida"}), 200
 
-#alunos
+#rotas alunso
 @app.route('/alunos', methods=['GET'])
 def listar_alunos():
     return jsonify(alunos)
@@ -108,7 +109,12 @@ def criar_aluno():
     novo_aluno = {
         "id": len(alunos) + 1,
         "nome": dados["nome"],
-        "turma_id": dados["turma_id"]
+        "idade": dados["idade"],
+        "turma_id": dados["turma_id"],
+        "data_nascimento": dados["data_nascimento"],
+        "nota_primeiro_semestre": dados["nota_primeiro_semestre"],
+        "nota_segundo_semestre": dados["nota_segundo_semestre"],
+        "media_final": dados["media_final"]
     }
     alunos.append(novo_aluno)
     return jsonify(novo_aluno), 201
@@ -122,7 +128,12 @@ def atualizar_aluno(id_aluno):
     dados = request.json
     aluno.update({
         "nome": dados.get("nome", aluno["nome"]),
-        "turma_id": dados.get("turma_id", aluno["turma_id"])
+        "idade": dados.get("idade", aluno["idade"]),
+        "turma_id": dados.get("turma_id", aluno["turma_id"]),
+        "data_nascimento": dados.get("data_nascimento", aluno["data_nascimento"]),
+        "nota_primeiro_semestre": dados.get("nota_primeiro_semestre", aluno["nota_primeiro_semestre"]),
+        "nota_segundo_semestre": dados.get("nota_segundo_semestre", aluno["nota_segundo_semestre"]),
+        "media_final": dados.get("media_final", aluno["media_final"])
     })
     return jsonify(aluno)
 
@@ -132,6 +143,5 @@ def excluir_aluno(id_aluno):
     alunos = [a for a in alunos if a["id"] != id_aluno]
     return jsonify({"mensagem": "Aluno removido"}), 200
 
-#roda essa api logo
 if __name__ == '__main__':
     app.run(debug=True)
