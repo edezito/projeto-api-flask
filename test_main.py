@@ -484,7 +484,25 @@ class TesteAPI(unittest.TestCase):
         self.assertEqual(r.status_code, 404, "Erro: Turma Inexistente")
         self.assertIn('error', r.json(), "Erro: Turma Inexistente")
 
-
+    def teste_012_adicionar_turma_com_professor_invalido(self):
+        r = requests.post('http://localhost:5000/turmas', json={
+            'id': 63,
+            'descricao': 'Arte',
+            'professor_id': 9999,  # Professor ID inválido (não existe)
+            'status': 'Ativa'
+        })
+        
+        if r.status_code == 201:
+            # Verificar se a turma com o ID foi criada e se o professor_id é inválido
+            turma = requests.get(f'http://localhost:5000/turmas/{63}')
+            self.assertEqual(turma.status_code, 404, "Erro: A turma foi criada com um professor inválido.")
+        
+        else:
+            # Se a API retornar um erro, validar o erro conforme esperado
+            self.assertEqual(r.status_code, 400, "Erro: Professor inválido")
+            resposta = r.json()
+            self.assertIn('error', resposta, "Erro: Falta a chave 'error'")
+            self.assertEqual(resposta['error'], "Professor inválido", "Erro: A mensagem de erro não é 'Professor inválido'")
 def runTests():
         suite = unittest.defaultTestLoader.loadTestsFromTestCase(TesteAPI)
         unittest.TextTestRunner(verbosity=2,failfast=True).run(suite)
