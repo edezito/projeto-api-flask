@@ -119,7 +119,8 @@ def criar_turma():
     if 'id' not in dados:
         return jsonify({'error': 'Falta ID'}), 400
 
-
+    if not professor_exists(professor_id):
+        return jsonify({'error': 'Professor inválido'}), 400
     
     # Verificar se o ID da turma já existe
     for turma in dicie["turma"]:
