@@ -1,6 +1,7 @@
 import unittest
 import requests #consumir a API
 
+
 class TesteAPI(unittest.TestCase):
     #alunos
 
@@ -482,7 +483,6 @@ class TesteAPI(unittest.TestCase):
         r = requests.put('http://localhost:5000/turmas/999', json={'descricao': 'Turma Inexistente'})
         self.assertEqual(r.status_code, 404, "Erro: Turma Inexistente")
         self.assertIn('error', r.json(), "Erro: Turma Inexistente")
-
 
 
 def runTests():

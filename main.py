@@ -92,6 +92,9 @@ def excluir_professor(id_professor):
             return jsonify({"mensagem": "Professor removido com sucesso"})
     return jsonify({"error": "Professor não encontrado"}), 404
 
+def professor_exists(professor_id):
+    return professor_id in professores  # Exemplo de lista de IDs válidos
+
 
 # ---------------- TURMAS ----------------
 #exibir turmas
@@ -115,6 +118,8 @@ def criar_turma():
     # Verificando se o ID foi fornecido
     if 'id' not in dados:
         return jsonify({'error': 'Falta ID'}), 400
+
+
     
     # Verificar se o ID da turma já existe
     for turma in dicie["turma"]:
