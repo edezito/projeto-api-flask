@@ -119,8 +119,6 @@ def criar_turma():
     if 'id' not in dados:
         return jsonify({'error': 'Falta ID'}), 400
 
-    if not professor_exists(professor_id):
-        return jsonify({'error': 'Professor inválido'}), 400
     
     # Verificar se o ID da turma já existe
     for turma in dicie["turma"]:
@@ -139,6 +137,7 @@ def criar_turma():
     }
     dicie["turma"].append(nova_turma)
     return jsonify(nova_turma), 201
+
 
 #atualizar turmas
 @app.route('/turmas/<int:id_turma>', methods=['PUT'])
