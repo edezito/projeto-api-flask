@@ -75,41 +75,52 @@ class TesteAPI(unittest.TestCase):
 
     def teste_004_deletar_aluno(self):
         requests.post('http://localhost:5000/alunos', json={
-            'nome': 'Manoel',
-            'id': 8,
-            'idade': 20,
-            'turma_id': 1,
-            'data_nascimento': '2005-12-03'
+            "data_nascimento": "28/06/2006",
+            "id": 25,
+            "idade": 18,
+            "media": 6,
+            "nome": "Felipe",
+            "nota_primeiro_semestre": 5.6,
+            "nota_segundo_semestre": 5.6,
+            "turma_id": 2
         })
+
         requests.post('http://localhost:5000/alunos', json={
-            'nome': 'Eduardo',
-            'id': 9,
-            'idade': 20,
-            'turma_id': 2,
-            'data_nascimento': '2006-04-03'
+            "data_nascimento": "27/05/2005",
+            "id": 24,
+            "idade": 18,
+            "media": 6,
+            "nome": "Cesar",
+            "nota_primeiro_semestre": 5.6,
+            "nota_segundo_semestre": 5.6,
+            "turma_id": 2
         })
+
         requests.post('http://localhost:5000/alunos', json={
-            'nome': 'Thiago',
-            'id': 10,
-            'idade': 20,
-            'turma_id': 3,
-            'data_nascimento': '2006-10-03'
+            "data_nascimento": "28/12/2005",
+            "id": 23,
+            "idade": 18,
+            "media": 6,
+            "nome": "Augusto",
+            "nota_primeiro_semestre": 5.6,
+            "nota_segundo_semestre": 5.6,
+            "turma_id": 2
         })
 
         r_lista = requests.get('http://localhost:5000/alunos')
         lista_retornada = r_lista.json()
 
         nomes = [aluno['nome'] for aluno in lista_retornada]
-        self.assertIn('Manoel', nomes)
-        self.assertIn('Eduardo', nomes)
-        self.assertIn('Thiago', nomes)
+        self.assertIn('Felipe', nomes)
+        self.assertIn('Cesar', nomes)
+        self.assertIn('Augusto', nomes)
 
-        requests.delete('http://localhost:5000/alunos/9')
+        requests.delete('http://localhost:5000/alunos/25')
         r_lista2 = requests.get('http://localhost:5000/alunos')
         lista_retornada2 = r_lista2.json()
 
         nomes2 = [aluno['nome'] for aluno in lista_retornada2]
-        self.assertNotIn('Eduardo', nomes2)
+        self.assertNotIn('Felipe', nomes2)
         
         self.assertEqual(type(lista_retornada2), list)
 
