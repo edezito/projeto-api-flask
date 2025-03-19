@@ -92,8 +92,6 @@ def excluir_professor(id_professor):
             return jsonify({"mensagem": "Professor removido com sucesso"})
     return jsonify({"error": "Professor não encontrado"}), 404
 
-def professor_exists(professor_id):
-    return professor_id in professores  # Exemplo de lista de IDs válidos
 
 
 # ---------------- TURMAS ----------------
@@ -227,7 +225,7 @@ def atualizar_aluno(id_aluno):
     aluno["data_nascimento"] = dados.get("data_nascimento", aluno["data_nascimento"])
     aluno["nota_primeiro_semestre"] = dados.get("nota_primeiro_semestre", aluno["nota_primeiro_semestre"])
     aluno["nota_segundo_semestre"] = dados.get("nota_segundo_semestre", aluno["nota_segundo_semestre"])
-    aluno["media_final"] = dados.get("media_final", aluno["media_final"])
+    aluno["media_final"] = dados.get("media_final", aluno.get("media_final", 0))
 
     return jsonify({"mensagem": "Aluno atualizado com sucesso", "aluno": aluno}), 200
 
