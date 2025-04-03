@@ -1,6 +1,15 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, redirect, render_template_string, session
+from functools import wraps
 
 app = Flask(__name__)
+app.secret_key = "projeto-escola"
+
+#BANCO DE DADOS
+class Usuario:
+    def __init__(self, nome, nickname, senha):
+        self.nome = nome
+        self.nickname = nickname
+        self.senha = senha
 
 dicie = { 
     "alunos": [
@@ -11,22 +20,68 @@ dicie = {
     ],
     "turma": [
         {"id": 3, "nome": "Português"}
-    ]
+    ],
+   "usuarios": {
+        "edezito": Usuario("Eder", "edezito", "1234"),
+        "felipe": Usuario("Felipe", "felipe", "senha"),
+        "vitor": Usuario("Victor", "vitor", "abcd")
+    }
 }
 
+#AUTENTICAÇÃO
+def login_requerido(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not session.get('usuario_logado'):
+            return jsonify({
+                "erro": "Usuário não autenticado",
+                "redirecionar": "/login"
+            }), 401
+        return f(*args, **kwargs)
+    return decorated_function
+
+@app.route("/login", methods=["POST"])
+def autenticar():
+    dados = request.get_json() or {}
+    usuario = dados.get("usuario")
+    senha = dados.get("senha")
+
+    usuario_obj = dicie["usuarios"].get(usuario)
+
+    if usuario_obj and usuario_obj.senha == senha:
+        session['usuario_logado'] = usuario_obj.nickname
+        return jsonify({"mensagem": "Login bem-sucedido", "usuario": usuario_obj.nickname}), 200
+
+    return jsonify({"erro": "Usuário ou senha inválidos"}), 403
+
+@app.route('/logout', methods=["POST"])
+def logout():
+    if 'usuario_logado' in session:
+        session.pop('usuario_logado')
+        return jsonify({"mensagem": "Logout realizado com sucesso"}), 200
+    else:
+        return jsonify({"erro": "Nenhum usuário estava logado"}), 400
+
+
+#ROTAS
 #resetar
 @app.route("/reseta", methods=['POST'])
+@login_requerido
 def resetar_professor():
     dicie["alunos"] = []
     dicie["professores"] = []
     dicie["turma"] = []
     return jsonify({"mensagem": "Dados resetados com sucesso!"}), 200
-
 #PROFESSOR
 # exibir professor
 @app.route('/professores', methods=['GET'])
+@login_requerido
 def listar_professores():
-    return jsonify(dicie["professores"])
+    return jsonify({
+        "mensagem": "Bem-vindo à página de professores!",
+        "turma": dicie["turma"]
+    }), 200
+    
 
 #exibir professor pelo id
 @app.route('/professores/<int:id_professor>', methods=['GET'])
@@ -169,6 +224,7 @@ def excluir_aluno(id_aluno):
             dicie["alunos"].remove(aluno)
             return jsonify({"mensagem": "Aluno removido com sucesso"}), 200
     return jsonify({'error': 'Aluno não encontrado'}), 404
+
 
 #roda essa api logo
 if __name__ == '__main__':
