@@ -1,4 +1,4 @@
-from flask import Blueprint, Flask, jsonify, request, session
+from flask import Blueprint, jsonify, request, session
 from functools import wraps
 
 login_blueprint = Blueprint('login', __name__)
@@ -9,21 +9,19 @@ class Usuario:
         self.nickname = nickname
         self.senha = senha
 
-usuario = {
-    "usuarios": {
-        "edezito": Usuario("Eder", "edezito", "1234"),
-        "felipe": Usuario("Felipe", "felipe", "senha"),
-        "vitor": Usuario("Victor", "vitor", "abcd")
-    }
+usuarios = {
+    "edezito": Usuario("Eder", "edezito", "1234"),
+    "felipe": Usuario("Felipe", "felipe", "senha"),
+    "vitor": Usuario("Victor", "vitor", "abcd")
 }
 
-#AUTENTICAÇÃO
+# AUTENTICAÇÃO
 def login_requerido(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if not session.get('usuario_logado'):
             return jsonify({
-                "erro": "Usuario nao autenticado",
+                "erro": "Usuário não autenticado",
                 "redirecionar": "/login"
             }), 401
         return f(*args, **kwargs)
@@ -32,13 +30,14 @@ def login_requerido(f):
 @login_blueprint.route("/login", methods=["POST"])
 def autenticar():
     dados = request.get_json() or {}
-    usuario = dados.get("usuario")
+    usuario_nickname = dados.get("usuario")
     senha = dados.get("senha")
 
-    usuario_obj = usuario["usuarios"].get(usuario)
+    usuario_obj = usuarios.get(usuario_nickname)  # Acessando corretamente o dicionário global
 
     if usuario_obj and usuario_obj.senha == senha:
         session['usuario_logado'] = usuario_obj.nickname
+        session.permanent = True  # Mantém a sessão ativa
         return jsonify({"mensagem": "Login bem-sucedido", "usuario": usuario_obj.nickname}), 200
 
     return jsonify({"erro": "Usuário ou senha inválidos"}), 403
