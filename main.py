@@ -1,6 +1,10 @@
 from flask import Flask, jsonify, request
 from autenticacao import login_requerido
+
 from routes.aluno_routes import alunos_blueprint
+from routes.professor_routes import professores_blueprint
+from routes.turma_routes import turmas_blueprint
+
 from autenticacao import login_blueprint
 
 app = Flask(__name__)
@@ -117,10 +121,17 @@ def excluir_turma(id_turma):
 # ---------------- ALUNOS ----------------
 app.register_blueprint(alunos_blueprint)
 
+# ---------------- PROF -------------------
+app.register_blueprint(professores_blueprint)
+
+# --------------- TURMAS -----------------
+app.register_blueprint(turmas_blueprint)
+
+
 # ---------------- LOGIN ----------------
 app.register_blueprint(login_blueprint)
 
-#roda essa api logo
+#roda essa api 
 if __name__ == '__main__':
     app.run(debug=True)
 
