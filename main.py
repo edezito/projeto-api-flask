@@ -1,4 +1,4 @@
-from flask import Flask, jsonify
+from flask import Blueprint, Flask, jsonify
 from config import Config
 from autenticacao import login_requerido
 from model import aluno_model, professor_model, turma_model
@@ -6,14 +6,17 @@ from model import aluno_model, professor_model, turma_model
 from routes.aluno_routes import alunos_blueprint
 from routes.professor_routes import professores_blueprint
 from routes.turma_routes import turmas_blueprint
+from autenticacao import login_blueprint
 
 app = Flask(__name__)
 app.config.from_object(Config)
 
+admin_blueprint = Blueprint('admin', __name__)
+
 # ROTA PRA RESETAR TD
-@app.route("/reseta", methods=['POST'])
+@admin_blueprint.route("/reseta", methods=['POST'])
 @login_requerido
-def resetar_professor():
+def resetar_dados():
     aluno_model.dicie["alunos"] = []
     professor_model.dicie["professores"] = []
     turma_model.dicie["turma"] = []
@@ -23,6 +26,8 @@ def resetar_professor():
 app.register_blueprint(alunos_blueprint)
 app.register_blueprint(professores_blueprint)
 app.register_blueprint(turmas_blueprint)
+app.register_blueprint(admin_blueprint) 
+app.register_blueprint(login_blueprint)
 
 # RODA A API
 if __name__ == '__main__':

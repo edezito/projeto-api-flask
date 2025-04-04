@@ -25,15 +25,15 @@ def aluno_por_id(id_aluno):
 def criar_aluno(dados):
     # Verifica se o ID foi fornecido
     if 'id' not in dados:
-        return jsonify({"error": "Falta ID"}), 400
+        return ({"error": "Falta ID"}), 400
     
     # Verifica se o ID já existe
     if any(aluno["id"] == dados["id"] for aluno in dicie["alunos"]):
-        return jsonify({"error": "ID duplicado"}), 400
+        return ({"error": "ID duplicado"}), 400
 
     # Verifica se todos os campos obrigatórios estão presentes
     if not all(key in dados for key in ["nome", "idade", "turma_id", "data_nascimento"]):
-        return jsonify({"error": "Faltam campos obrigatórios"}), 400
+        return ({"error": "Faltam campos obrigatórios"}), 400
 
     # Calcula a média das notas
     nota_primeiro = dados.get("nota_primeiro_semestre", 0)
