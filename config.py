@@ -1,8 +1,7 @@
 import os
-from flask import Flask
 
-app = Flask(__name__)
-app.config['HOST'] = '127.0.0.1'
-app.config['PORT'] =5000
-app.config['DEBUG'] = True
-app.secret_key = "projeto-escola"
+class Config:
+    HOST = '127.0.0.1'
+    PORT = 5000
+    DEBUG = True
+    SECRET_KEY = os.getenv('SECRET_KEY', 'projeto-escola')

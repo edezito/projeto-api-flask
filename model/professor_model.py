@@ -1,8 +1,8 @@
-from flask import jsonify, request
+from flask import jsonify
 
 dicie = {
     "professores": [
-        {"id": 2, "nome": "João"}
+        {"id": 2, "nome": "João", "idade": 33, "materia": "Historia", "observacoes": "professor-novo" }
     ]
 }
 
@@ -22,13 +22,19 @@ def professor_por_id(id_professor):
 
 # Criar professor
 def criar_professor(dados):
-    if "id" not in dados or "nome" not in dados:
+    if "id" not in dados or "nome" not in dados or "idade" not in dados or "materia" not in dados:
         return jsonify({"error": "Faltam campos obrigatórios"}), 400
     
     if any(prof["id"] == dados["id"] for prof in dicie["professores"]):
         return jsonify({"error": "ID já existente"}), 400
     
-    novo_professor = {"id": dados["id"], "nome": dados["nome"]}
+    novo_professor = {
+        "id": dados["id"],
+        "nome": dados["nome"],
+        "idade": dados["idade"],
+        "materia": dados["materia"],
+        "observacoes": dados.get("observacoes", "")
+    }
     dicie["professores"].append(novo_professor)
     return jsonify(novo_professor), 201
 
@@ -38,7 +44,13 @@ def atualizar_professor(id_professor, dados):
     if professor is None:
         raise ProfessorNaoEncontrado
     
-    professor["nome"] = dados.get("nome", professor["nome"])
+    professor.update({
+        "nome": dados.get("nome", professor["nome"]),
+        "idade": dados.get("idade", professor["idade"]),
+        "materia": dados.get("materia", professor["materia"]),
+        "observacoes": dados.get("observacoes", professor.get("observacoes", ""))
+    })
+    
     return jsonify({"mensagem": "Professor atualizado", "professor": professor}), 200
 
 # Excluir professor

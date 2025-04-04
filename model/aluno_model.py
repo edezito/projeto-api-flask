@@ -53,7 +53,7 @@ def criar_aluno(dados):
     }
 
     dicie["alunos"].append(novo_aluno)
-    return jsonify({"mensagem": "Aluno criado com sucesso", "aluno": novo_aluno}), 201
+    return ({"mensagem": "Aluno criado com sucesso", "aluno": novo_aluno}), 201
 
 # Atualizar aluno
 def atualizar_aluno(id_aluno, dados):
@@ -73,12 +73,12 @@ def atualizar_aluno(id_aluno, dados):
 
     aluno["media"] = (aluno["nota_primeiro_semestre"] + aluno["nota_segundo_semestre"]) / 2
 
-    return jsonify({"mensagem": "Aluno atualizado com sucesso", "aluno": aluno}), 200
+    return ({"mensagem": "Aluno atualizado com sucesso", "aluno": aluno}), 200
 
 # Excluir aluno
 def excluir_aluno(id_aluno):
     for aluno in dicie["alunos"]:
         if aluno["id"] == id_aluno:
             dicie["alunos"].remove(aluno)
-            return jsonify({"mensagem": "Aluno removido com sucesso"}), 200
+            return ({"mensagem": "Aluno removido com sucesso"}), 200
     raise AlunoNaoEncontrado

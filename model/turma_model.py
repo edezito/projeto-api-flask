@@ -1,8 +1,8 @@
-from flask import jsonify, request
+from flask import jsonify
 
 dicie = {
     "turmas": [
-        {"id": 3, "nome": "Português"}
+        {"id": 3, "descricao": "Português", "professor_id": 2, "ativo": True}
     ]
 }
 
@@ -22,10 +22,18 @@ def turma_por_id(id_turma):
 
 # Criar turma
 def criar_turma(dados):
-    if "id" not in dados or "nome" not in dados:
+    if "id" not in dados or "descricao" not in dados or "professor_id" not in dados:
         return jsonify({"error": "Faltam campos obrigatórios"}), 400
     
-    nova_turma = {"id": dados["id"], "nome": dados["nome"]}
+    if any(t["id"] == dados["id"] for t in dicie["turmas"]):
+        return jsonify({"error": "ID já existente"}), 400
+    
+    nova_turma = {
+        "id": dados["id"],
+        "descricao": dados["descricao"],
+        "professor_id": dados["professor_id"],
+        "ativo": dados.get("ativo", True)
+    }
     dicie["turmas"].append(nova_turma)
     return jsonify(nova_turma), 201
 
@@ -35,7 +43,12 @@ def atualizar_turma(id_turma, dados):
     if turma is None:
         raise TurmaNaoEncontrada
     
-    turma["nome"] = dados.get("nome", turma["nome"])
+    turma.update({
+        "descricao": dados.get("descricao", turma["descricao"]),
+        "professor_id": dados.get("professor_id", turma["professor_id"]),
+        "ativo": dados.get("ativo", turma["ativo"])
+    })
+    
     return jsonify({"mensagem": "Turma atualizada", "turma": turma}), 200
 
 # Excluir turma
