@@ -21,6 +21,10 @@ def aluno_por_id(id_aluno):
             return aluno
     raise AlunoNaoEncontrado
 
+#VALIDAÇÕES
+def validar_idade(idade):
+    return isinstance(idade, int) and 0 <= idade <= 120
+
 # Criar aluno
 def criar_aluno(dados):
     # Verifica se o ID foi fornecido
@@ -34,6 +38,10 @@ def criar_aluno(dados):
     # Verifica se todos os campos obrigatórios estão presentes
     if not all(key in dados for key in ["nome", "idade", "turma_id", "data_nascimento"]):
         return ({"error": "Faltam campos obrigatórios"}), 400
+    
+    # Validação da idade
+    if not validar_idade(dados["idade"]):
+        return ({"error": "Idade inválida"}), 400
 
     # Calcula a média das notas
     nota_primeiro = dados.get("nota_primeiro_semestre", 0)
