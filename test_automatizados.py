@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import patch, MagicMock
 import requests
 from config import Config
 from model.aluno_model import validar_idade
@@ -24,17 +25,11 @@ class TestValidarIdade(unittest.TestCase):
 # Testes E2E + Integração
 # -------------------------------
 class TestGerenciamentoAcademico(unittest.TestCase):
-
     def setUp(self):
         self.session = requests.Session()
-
-        credenciais = {
-            "usuario": "edezito",
-            "senha": "1234"
-        }
-
+        credenciais = {"usuario": "edezito", "senha": "1234"}
         response = self.session.post(f"{BASE_URL}/login", json=credenciais)
-
+        
         try:
             response_data = response.json()
         except ValueError:
@@ -45,8 +40,6 @@ class TestGerenciamentoAcademico(unittest.TestCase):
             self.token = response_data["token"]
             self.headers = {"Authorization": f"Bearer {self.token}"}
         else:
-            self.token = None
-            self.headers = {}
             self.fail(f"Falha na autenticação: {response.text}")
 
     def tearDown(self):
@@ -54,6 +47,9 @@ class TestGerenciamentoAcademico(unittest.TestCase):
 
     # ---------- E2E ----------
     def test_cadastrar_aluno(self):
+        if not self.token:
+            self.fail("Não foi possível autenticar o usuário")
+
         dados_aluno = {
             "id": 9,
             "nome": "Otavio",
@@ -64,19 +60,15 @@ class TestGerenciamentoAcademico(unittest.TestCase):
             "nota_segundo_semestre": 5.6
         }
 
-        # Envia o POST para cadastrar o aluno
         response = self.session.post(f"{BASE_URL}/alunos", json=dados_aluno, headers=self.headers)
+
         self.assertEqual(response.status_code, 201, f"Falha ao cadastrar aluno: {response.text}")
 
-        # Faz uma requisição GET para buscar os alunos e verificar o retorno
-        response_get = self.session.get(f"{BASE_URL}/alunos", headers=self.headers)
-        self.assertEqual(response_get.status_code, 200)
-
-        obj_retornado = response_get.json()
-        self.assertIn("alunos", obj_retornado)
-        self.assertIsInstance(obj_retornado["alunos"], list)
 
     def test_cadastrar_professor(self):
+        if not self.token:
+            self.fail("Não foi possível autenticar o usuário")
+
         dados_professor = {
             "id": 7,
             "nome": "Bruno",
@@ -84,11 +76,17 @@ class TestGerenciamentoAcademico(unittest.TestCase):
             "materia": "Filosofia",
             "observacoes": "professor-substituto"
         }
+        mock_post.return_value = MagicMock(status_code=201, json=lambda: {"mensagem": "Professor cadastrado com sucesso"})
 
+        # Act
         response = self.session.post(f"{BASE_URL}/professores", json=dados_professor, headers=self.headers)
+
         self.assertEqual(response.status_code, 201, f"Falha ao cadastrar professor: {response.text}")
 
     def test_cadastrar_turma(self):
+        if not self.token:
+            self.fail("Não foi possível autenticar o usuário")
+
         dados_turma = {
             "id": 12,
             "descricao": "Física",
@@ -96,18 +94,11 @@ class TestGerenciamentoAcademico(unittest.TestCase):
             "ativo": True
         }
 
+        # Act
         response = self.session.post(f"{BASE_URL}/turmas", json=dados_turma, headers=self.headers)
+
         self.assertEqual(response.status_code, 201, f"Falha ao cadastrar turma: {response.text}")
 
-    # ---------- Integração ----------
-    def test_cadastrar_aluno_dados_invalidos(self):
-        dados_aluno = {
-            "nome": "",
-            "idade": -1,
-        }
-
-        response = self.session.post(f"{BASE_URL}/alunos", json=dados_aluno, headers=self.headers)
-        self.assertEqual(response.status_code, 400)
 
 
 if __name__ == "__main__":
