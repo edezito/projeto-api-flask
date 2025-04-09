@@ -99,6 +99,68 @@ class TestGerenciamentoAcademico(unittest.TestCase):
 
         self.assertEqual(response.status_code, 201, f"Falha ao cadastrar turma: {response.text}")
 
+    def test_adicionar_aluno_sem_id(self):
+        if not self.token:
+            self.fail("Não foi possível autenticar o usuário")
+        r = self.session.post(f'{BASE_URL}/alunos', json={'nome': 'Sofia'}, headers=self.headers)
+        self.assertEqual(r.status_code, 400, "Erro ao adicionar aluno sem ID não detectado")
+        try:
+            self.assertIn('error', r.json(), "Mensagem de erro para falta de ID não encontrada")
+        except ValueError:
+            self.fail(f"Resposta inválida da API (não é JSON) ao adicionar sem ID: {r.text}")
+
+    def test_adicionar_aluno_sem_nome(self):
+        if not self.token:
+            self.fail("Não foi possível autenticar o usuário")
+        r = self.session.post(f'{BASE_URL}/alunos', json={'id': 6}, headers=self.headers)
+        self.assertEqual(r.status_code, 400, "Erro ao adicionar aluno sem nome não detectado")
+        try:
+            self.assertIn('error', r.json(), "Mensagem de erro para falta de nome não encontrada")
+        except ValueError:
+            self.fail(f"Resposta inválida da API (não é JSON) ao adicionar sem nome: {r.text}")
+
+    def test_deletar_aluno_com_id_invalido(self):
+        if not self.token:
+            self.fail("Não foi possível autenticar o usuário")
+        r = self.session.delete(f'{BASE_URL}/alunos/abc', headers=self.headers)
+        self.assertEqual(r.status_code, 404, "Erro ao deletar aluno com ID inválido não detectado")
+
+    def test_deletar_aluno_inexistente(self):
+        if not self.token:
+            self.fail("Não foi possível autenticar o usuário")
+        r = self.session.delete(f'{BASE_URL}/alunos/999', headers=self.headers)
+        self.assertEqual(r.status_code, 404, "Erro ao deletar aluno inexistente não detectado")
+        try:
+            self.assertIn('error', r.json(), "Mensagem de erro para deletar inexistente não encontrada")
+        except ValueError:
+            self.fail(f"Resposta inválida da API (não é JSON) ao deletar inexistente: {r.text}")
+
+    def test_deletar_aluno_sem_id(self):
+        if not self.token:
+            self.fail("Não foi possível autenticar o usuário")
+        r = self.session.delete(f'{BASE_URL}/alunos/', headers=self.headers)
+        self.assertEqual(r.status_code, 404, "Erro ao deletar aluno sem ID na rota não detectado")
+
+
+    def test_editar_aluno_inexistente(self):
+        if not self.token:
+            self.fail("Não foi possível autenticar o usuário")
+        aluno_inexistente = {"nome": "Aluno Inexistente"}
+        r = self.session.put(f'{BASE_URL}/alunos/999', json=aluno_inexistente, headers=self.headers)
+        self.assertEqual(r.status_code, 404, "Erro ao editar aluno inexistente não detectado")
+        try:
+            self.assertIn('error', r.json(), "Mensagem de erro para editar inexistente não encontrada")
+        except ValueError:
+            self.fail(f"Resposta inválida da API (não é JSON) ao editar inexistente: {r.text}")
+
+    def test_idade_invalida_maior_que_120(self):
+        self.assertFalse(validar_idade(130))
+
+    def test_idade_invalida_negativa(self):
+        self.assertFalse(validar_idade(-5))
+
+    def test_idade_valida(self):
+        self.assertTrue(validar_idade(18))
 
 
 if __name__ == "__main__":
