@@ -73,13 +73,18 @@ def test_cadastrar_aluno(session, headers):
         "nota_segundo_semestre": 5.6
     }
     r = session.post(f"{BASE_URL}/alunos", json=aluno, headers=headers)
+
+    print("Status code:", r.status_code)
+    print("Resposta:", r.text)  # Adicione isso para debug
+
     assert r.status_code == 201
+
 
 
 def test_cadastrar_aluno_idade_invalida(session, headers):
     aluno = {
         "id": 10,
-        "nome": "Idoso Impossível",
+        "nome": "Victor Souza",
         "idade": 130,
         "turma_id": 1,
         "data_nascimento": "1890-01-01",
