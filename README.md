@@ -1,4 +1,10 @@
-# Melhorias Implementadas na Entrega 2
+# API School System – Entrega 2: Projeto Flask com MVC
+
+Grupo 1: Éder Duarte, Felipe Lima Nogueira, Victor Henrique Souza Oliveira
+
+Data da atividade: 09/04/2025
+
+## Melhorias Implementadas na Entrega 2
 
 A entrega 2 do projeto API School System focou em aprimorar a API Flask, abordando vários desafios e melhorias propostas na entrega 1.
 
