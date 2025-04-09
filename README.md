@@ -22,7 +22,7 @@ A API agora retorna mensagens de erro mais informativas em formato JSON, com có
 
 ## Testes Automatizados
 
-Foram criados testes automatizados utilizando o framework `unittest`. Esses testes cobrem tanto a lógica de validação (testes unitários para `validar_idade`) quanto o funcionamento das rotas da API (testes de integração e E2E). Os testes verificam o comportamento esperado da API em diferentes cenários, incluindo casos de sucesso e casos de erro.
+Foram criados testes automatizados utilizando o framework `pytest`. Esses testes cobrem tanto a lógica de validação (testes unitários para `validar_idade`) quanto o funcionamento das rotas da API (testes de integração e E2E). Os testes verificam o comportamento esperado da API em diferentes cenários, incluindo casos de sucesso e casos de erro.
 
 ## Organização do Código
 
