@@ -64,7 +64,7 @@ def test_rota_sem_token():
 # -------------------------------
 def test_cadastrar_aluno(session, headers):
     aluno = {
-        "id": 9,
+        "id": 15,
         "nome": "Otavio",
         "idade": 18,
         "turma_id": 2,
@@ -75,7 +75,7 @@ def test_cadastrar_aluno(session, headers):
     r = session.post(f"{BASE_URL}/alunos", json=aluno, headers=headers)
 
     print("Status code:", r.status_code)
-    print("Resposta:", r.text)  # Adicione isso para debug
+    print("Resposta:", r.text)  
 
     assert r.status_code == 201
 
@@ -134,7 +134,7 @@ def test_buscar_aluno_inexistente(session, headers):
 
 def test_editar_aluno_existente(session, headers):
     dados = {"nome": "Otavio Atualizado"}
-    r = session.put(f"{BASE_URL}/alunos/9", json=dados, headers=headers)
+    r = session.put(f"{BASE_URL}/alunos/15", json=dados, headers=headers)
     assert r.status_code in [200, 204]
 
 
