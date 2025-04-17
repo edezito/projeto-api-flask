@@ -32,3 +32,11 @@ app.register_blueprint(login_blueprint)
 # RODA A API
 if __name__ == '__main__':
     app.run(host=Config.HOST, port=Config.PORT, debug=Config.DEBUG)
+
+
+#from model.database import db
+
+#db.init_app(app)
+
+#with app.app_context():
+#    db.create_all()
