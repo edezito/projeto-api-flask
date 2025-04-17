@@ -1,5 +1,5 @@
 from flask import Blueprint, Flask, jsonify
-from config import Config
+from config import BancoDados, Config
 from autenticacao import login_requerido
 from model import aluno_model, professor_model, turma_model
 
@@ -11,6 +11,7 @@ from autenticacao import login_blueprint
 app = Flask(__name__)
 app.config.from_object(Config)
 
+# Registrar Blueprints
 admin_blueprint = Blueprint('admin', __name__)
 
 # ROTA PRA RESETAR TD
@@ -26,17 +27,18 @@ def resetar_dados():
 app.register_blueprint(alunos_blueprint)
 app.register_blueprint(professores_blueprint)
 app.register_blueprint(turmas_blueprint)
-app.register_blueprint(admin_blueprint) 
+app.register_blueprint(admin_blueprint)
 app.register_blueprint(login_blueprint)
+
+# Função para inicializar o banco de dados
+def init_db():
+    # Criar todas as tabelas no banco de dados
+    with app.app_context():
+        BancoDados.Base.metadata.create_all(BancoDados.engine)
+
+# Chamada para inicializar o banco de dados ao rodar a aplicação
+init_db()
 
 # RODA A API
 if __name__ == '__main__':
     app.run(host=Config.HOST, port=Config.PORT, debug=Config.DEBUG)
-
-
-#from model.database import db
-
-#db.init_app(app)
-
-#with app.app_context():
-#    db.create_all()

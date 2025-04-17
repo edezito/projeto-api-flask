@@ -44,6 +44,7 @@ def autenticar():
     usuario_obj = usuarios.get(usuario_nickname)
 
     if usuario_obj and usuario_obj.senha == senha:
+        # Gerando o token JWT
         token = jwt.encode(
             {
                 "usuario": usuario_obj.nickname,
@@ -52,11 +53,17 @@ def autenticar():
             Config.SECRET_KEY,
             algorithm="HS256"
         )
-        return jsonify({"mensagem": "Login bem-sucedido", "token": token}), 200
+        
+        # Adicionando o nome ao retorno para feedback completo
+        return jsonify({
+            "mensagem": f"Login bem-sucedido, {usuario_obj.nome}!",
+            "token": token
+        }), 200
 
     return jsonify({"erro": "Usuário ou senha inválidos"}), 403
 
 @login_blueprint.route('/logout', methods=["POST"])
 @login_requerido
 def logout():
+    # O JWT é descartado no lado do cliente
     return jsonify({"mensagem": "Logout realizado com sucesso (JWT descartado no cliente)"}), 200

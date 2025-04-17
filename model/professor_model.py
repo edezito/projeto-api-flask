@@ -1,10 +1,39 @@
+from sqlalchemy import Column, ForeignKey, Integer, String, Date, Float
+from sqlalchemy.orm import relationship
+from config import BancoDados
 from flask import jsonify
 
+Base = BancoDados.Base
+
+class Professor(Base):
+    __tablename__ = 'professores'
+
+    id = Column(Integer, primary_key=True)
+    nome = Column(String, nullable=False)
+    data_nascimento = Column(Date, nullable=False)
+    disciplina = Column(String, nullable=False)
+    salario = Column(Float, nullable=False)
+
+    output = relationship("ProfessorOutput", back_populates="professor", 
+                         uselist=False, cascade="all, delete-orphan")
+
+class ProfessorOutput(Base):
+    __tablename__ = 'professor_outputs'
+    
+    id = Column(Integer, primary_key=True)
+    professor_id = Column(Integer, ForeignKey('professores.id'))
+    # Adicione outros campos específicos da saída do professor
+    
+    # Relacionamento de volta para Professor
+    professor = relationship("Professor", back_populates="output")
+
+'''
 dicie = {
     "professores": [
         {"id": 2, "nome": "João", "idade": 33, "materia": "Historia", "observacoes": "professor-novo" }
     ]
 }
+'''
 
 class ProfessorNaoEncontrado(Exception):
     pass

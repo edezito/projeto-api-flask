@@ -1,11 +1,35 @@
 from flask import jsonify
+from sqlalchemy import Boolean, Column, Integer, String, Float, ForeignKey
+from sqlalchemy.orm import relationship
+from config import BancoDados
 
+Base = BancoDados.Base
+class Turma(Base):
+    __tablename__ = 'turmas'
+
+    id = Column(Integer, primary_key=True)
+    descricao = Column(String, nullable=False)
+    professor_id = Column(Integer, ForeignKey('professores.id'), nullable=False)
+    ativo = Column(Boolean, default=True)
+
+    # Relacionamento com os alunos
+    alunos = relationship("Aluno", back_populates="turma", cascade="all, delete-orphan")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "descricao": self.descricao,
+            "professor_id": self.professor_id,
+            "ativo": self.ativo
+        }
+
+'''
 dicie = {
     "turmas": [
         {"id": 3, "descricao": "Português", "professor_id": 2, "ativo": True}
     ]
 }
-
+'''
 class TurmaNaoEncontrada(Exception):
     pass
 

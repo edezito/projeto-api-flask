@@ -1,5 +1,11 @@
 import os
-from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import create_engine
+from sqlalchemy.orm import declarative_base, sessionmaker
+
+class BancoDados:
+    engine = create_engine('sqlite:///gestao_escolar.db', echo=True)
+    Base = declarative_base()
+    Session = sessionmaker(bind=engine)
 
 class Config:
     HOST = '127.0.0.1'
@@ -7,18 +13,5 @@ class Config:
     DEBUG = True
     SECRET_KEY = os.getenv('SECRET_KEY', 'projeto-escola')
 
-
-
-#import os
-#from flask import Flask
-#from flask_sqlalchemy import SQLAlchemy
-
-#app = Flask(__name__)
-#app.config['HOST'] = '0.0.0.0'
-#app.config['PORT'] = 8000
-#app.config['DEBUG'] = True
-#app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'projeto-escola')
-#app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///app.db'
-#app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-
-#db = SQLAlchemy(app)
+    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL', 'sqlite:///gestao_escolar.db')
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
