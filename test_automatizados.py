@@ -64,7 +64,6 @@ def test_rota_sem_token():
 # -------------------------------
 def test_cadastrar_aluno(session, headers):
     aluno = {
-        "id": 15,
         "nome": "Otavio",
         "idade": 18,
         "turma_id": 2,

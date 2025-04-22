@@ -1,35 +1,44 @@
+from functools import wraps
 from flask import Blueprint, jsonify, request
 from autenticacao import login_requerido
-from model.turma_model import TurmaNaoEncontrada, listar_turmas, turma_por_id, criar_turma, atualizar_turma, excluir_turma
+from model.turma_model import TurmaService, TurmaNaoEncontrada
 
 turmas_blueprint = Blueprint('turmas', __name__)
 
 @turmas_blueprint.route('/turmas', methods=['GET'])
 @login_requerido
 def get_turmas():
-    return jsonify({"turmas": listar_turmas()}), 200
+    try:
+        lista = TurmaService.listar_turmas()
+        return jsonify({"turmas": lista}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @turmas_blueprint.route('/turmas/<int:id_turma>', methods=['GET'])
 @login_requerido
 def get_turma(id_turma):
     try:
-        turma = turma_por_id(id_turma)
+        turma = TurmaService.turma_por_id(id_turma)
         return jsonify({"turma": turma}), 200
     except TurmaNaoEncontrada:
         return jsonify({"error": "Turma não encontrada"}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @turmas_blueprint.route('/turmas', methods=['POST'])
 @login_requerido
 def create_turma():
     data = request.json
-    return criar_turma(data)
+    result, code = TurmaService.criar_turma(data)
+    return jsonify(result), code
 
 @turmas_blueprint.route('/turmas/<int:id_turma>', methods=['PUT'])
 @login_requerido
 def update_turma(id_turma):
     data = request.json
     try:
-        return atualizar_turma(id_turma, data)
+        result, code = TurmaService.atualizar_turma(id_turma, data)
+        return jsonify(result), code
     except TurmaNaoEncontrada:
         return jsonify({"error": "Turma não encontrada"}), 404
 
@@ -37,6 +46,7 @@ def update_turma(id_turma):
 @login_requerido
 def delete_turma(id_turma):
     try:
-        return excluir_turma(id_turma)
+        result, code = TurmaService.excluir_turma(id_turma)
+        return jsonify(result), code
     except TurmaNaoEncontrada:
         return jsonify({"error": "Turma não encontrada"}), 404

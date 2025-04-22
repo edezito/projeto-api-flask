@@ -1,92 +1,140 @@
-from sqlalchemy import Column, ForeignKey, Integer, String, Date, Float
+from sqlalchemy import Column, Integer, String, Text
 from sqlalchemy.orm import relationship
 from config import BancoDados
-from flask import jsonify
+from sqlalchemy.exc import SQLAlchemyError
+
 
 Base = BancoDados.Base
+Session = BancoDados.Session
 
+# Modelo Professor atualizado
 class Professor(Base):
     __tablename__ = 'professores'
 
-    id = Column(Integer, primary_key=True)
-    nome = Column(String, nullable=False)
-    data_nascimento = Column(Date, nullable=False)
-    disciplina = Column(String, nullable=False)
-    salario = Column(Float, nullable=False)
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    nome = Column(String(100), nullable=False)
+    idade = Column(Integer, nullable=False)
+    materia = Column(String(100), nullable=False)
+    observacoes = Column(Text)
 
-    output = relationship("ProfessorOutput", back_populates="professor", 
-                         uselist=False, cascade="all, delete-orphan")
+    # Relacionamento com turmas
+    turmas = relationship("Turma", back_populates="professor", cascade="all, delete-orphan")
 
-class ProfessorOutput(Base):
-    __tablename__ = 'professor_outputs'
-    
-    id = Column(Integer, primary_key=True)
-    professor_id = Column(Integer, ForeignKey('professores.id'))
-    # Adicione outros campos específicos da saída do professor
-    
-    # Relacionamento de volta para Professor
-    professor = relationship("Professor", back_populates="output")
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "nome": self.nome,
+            "idade": self.idade,
+            "materia": self.materia,
+            "observacoes": self.observacoes
+        }
 
-'''
-dicie = {
-    "professores": [
-        {"id": 2, "nome": "João", "idade": 33, "materia": "Historia", "observacoes": "professor-novo" }
-    ]
-}
-'''
 
 class ProfessorNaoEncontrado(Exception):
     pass
 
-# Listar professores
-def listar_professores():
-    return dicie["professores"]
+# Service
+class ProfessorService:
 
-# Buscar professor por ID
-def professor_por_id(id_professor):
-    for professor in dicie["professores"]:
-        if professor["id"] == id_professor:
-            return professor
-    raise ProfessorNaoEncontrado
+    @staticmethod
+    def listar_professores():
+        session = Session()
+        try:
+            professores = session.query(Professor).all()
+            return [prof.to_dict() for prof in professores]
+        except SQLAlchemyError as e:
+            raise Exception(f"Erro ao listar professores: {str(e)}")
+        finally:
+            session.close()
 
-# Criar professor
-def criar_professor(dados):
-    if "id" not in dados or "nome" not in dados or "idade" not in dados or "materia" not in dados:
-        return jsonify({"error": "Faltam campos obrigatórios"}), 400
-    
-    if any(prof["id"] == dados["id"] for prof in dicie["professores"]):
-        return jsonify({"error": "ID já existente"}), 400
-    
-    novo_professor = {
-        "id": dados["id"],
-        "nome": dados["nome"],
-        "idade": dados["idade"],
-        "materia": dados["materia"],
-        "observacoes": dados.get("observacoes", "")
-    }
-    dicie["professores"].append(novo_professor)
-    return jsonify(novo_professor), 201
+    @staticmethod
+    def professor_por_id(id_professor):
+        session = Session()
+        try:
+            professor = session.query(Professor).filter(Professor.id == id_professor).first()
+            if not professor:
+                raise ProfessorNaoEncontrado()
+            return professor.to_dict()
+        except SQLAlchemyError as e:
+            raise Exception(f"Erro ao buscar professor: {str(e)}")
+        finally:
+            session.close()
 
-# Atualizar professor
-def atualizar_professor(id_professor, dados):
-    professor = next((p for p in dicie["professores"] if p["id"] == id_professor), None)
-    if professor is None:
-        raise ProfessorNaoEncontrado
-    
-    professor.update({
-        "nome": dados.get("nome", professor["nome"]),
-        "idade": dados.get("idade", professor["idade"]),
-        "materia": dados.get("materia", professor["materia"]),
-        "observacoes": dados.get("observacoes", professor.get("observacoes", ""))
-    })
-    
-    return jsonify({"mensagem": "Professor atualizado", "professor": professor}), 200
+    @staticmethod
+    def validar_dados(dados):
+        campos_obrigatorios = ["nome", "idade", "materia"]
+        if not all(campo in dados for campo in campos_obrigatorios):
+            raise ValueError("Faltam campos obrigatórios")
 
-# Excluir professor
-def excluir_professor(id_professor):
-    for professor in dicie["professores"]:
-        if professor["id"] == id_professor:
-            dicie["professores"].remove(professor)
-            return jsonify({"mensagem": "Professor removido com sucesso"}), 200
-    raise ProfessorNaoEncontrado
+        if not isinstance(dados["idade"], int) or dados["idade"] < 0:
+            raise ValueError("Idade inválida")
 
+    @staticmethod
+    def criar_professor(dados):
+        session = Session()
+        try:
+            ProfessorService.validar_dados(dados)
+
+            novo_professor = Professor(
+                nome=dados["nome"],
+                idade=dados["idade"],
+                materia=dados["materia"],
+                observacoes=dados.get("observacoes")
+            )
+
+            session.add(novo_professor)
+            session.commit()
+            return novo_professor.to_dict(), 201
+        except ValueError as e:
+            session.rollback()
+            return {"error": str(e)}, 400
+        except SQLAlchemyError as e:
+            session.rollback()
+            return {"error": f"Erro ao criar professor: {str(e)}"}, 500
+        finally:
+            session.close()
+
+    @staticmethod
+    def atualizar_professor(id_professor, dados):
+        session = Session()
+        try:
+            professor = session.query(Professor).filter(Professor.id == id_professor).first()
+            if not professor:
+                raise ProfessorNaoEncontrado()
+
+            if "idade" in dados:
+                if not isinstance(dados["idade"], int) or dados["idade"] < 0:
+                    raise ValueError("Idade inválida")
+
+            professor.nome = dados.get("nome", professor.nome)
+            professor.idade = dados.get("idade", professor.idade)
+            professor.materia = dados.get("materia", professor.materia)
+            professor.observacoes = dados.get("observacoes", professor.observacoes)
+
+            session.commit()
+            return professor.to_dict(), 200
+        except ValueError as e:
+            session.rollback()
+            return {"error": str(e)}, 400
+        except SQLAlchemyError as e:
+            session.rollback()
+            return {"error": f"Erro ao atualizar professor: {str(e)}"}, 500
+        finally:
+            session.close()
+
+    @staticmethod
+    def excluir_professor(id_professor):
+        session = Session()
+        try:
+            professor = session.query(Professor).filter(Professor.id == id_professor).first()
+            if not professor:
+                raise ProfessorNaoEncontrado()
+
+            session.delete(professor)
+            session.commit()
+            return {"message": "Professor excluído com sucesso"}, 200
+        except SQLAlchemyError as e:
+            session.rollback()
+            return {"error": f"Erro ao excluir professor: {str(e)}"}, 500
+        finally:
+            session.close()

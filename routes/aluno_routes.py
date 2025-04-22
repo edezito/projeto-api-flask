@@ -2,7 +2,7 @@ from functools import wraps
 from flask import Blueprint, jsonify, request
 from autenticacao import login_requerido
 from model.aluno_model import AlunoService
-from model.turma_model import Turma  # Importe o modelo Turma
+from model.turma_model import Turma  
 from config import BancoDados
 from sqlalchemy.orm.exc import NoResultFound
 
