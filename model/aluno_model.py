@@ -102,12 +102,13 @@ class AlunoService:
             aluno.nome = dados.get("nome", aluno.nome)
             aluno.idade = dados.get("idade", aluno.idade)
             aluno.turma_id = dados.get("turma_id", aluno.turma_id)
-            
-            # Atualiza notas e média
-            if "nota_primeiro_semestre" in dados or "nota_segundo_semestre" in dados:
-                aluno.nota_primeiro_semestre = dados.get("nota_primeiro_semestre", aluno.nota_primeiro_semestre)
-                aluno.nota_segundo_semestre = dados.get("nota_segundo_semestre", aluno.nota_segundo_semestre)
-                aluno.media = (aluno.nota_primeiro_semestre + aluno.nota_segundo_semestre) / 2
+
+            if "nota_primeiro_semestre" in dados:
+                aluno.nota_primeiro_semestre = dados["nota_primeiro_semestre"]
+            if "nota_segundo_semestre" in dados:
+                aluno.nota_segundo_semestre = dados["nota_segundo_semestre"]
+                
+            aluno.media = (aluno.nota_primeiro_semestre + aluno.nota_segundo_semestre) / 2
 
             session.commit()
             return aluno.to_dict()
