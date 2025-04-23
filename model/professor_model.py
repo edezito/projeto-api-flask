@@ -6,8 +6,6 @@ from sqlalchemy.exc import SQLAlchemyError
 
 Base = BancoDados.Base
 Session = BancoDados.Session
-
-# Modelo Professor atualizado
 class Professor(Base):
     __tablename__ = 'professores'
 
@@ -17,7 +15,6 @@ class Professor(Base):
     materia = Column(String(100), nullable=False)
     observacoes = Column(Text)
 
-    # Relacionamento com turmas
     turmas = relationship("Turma", back_populates="professor", cascade="all, delete-orphan")
 
     def to_dict(self):
@@ -32,8 +29,6 @@ class Professor(Base):
 
 class ProfessorNaoEncontrado(Exception):
     pass
-
-# Service
 class ProfessorService:
 
     @staticmethod

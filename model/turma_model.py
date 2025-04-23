@@ -5,8 +5,6 @@ from config import BancoDados
 
 Base = BancoDados.Base
 Session = BancoDados.Session
-
-# ——— Modelo ———
 class Turma(Base):
     __tablename__ = 'turmas'
 
@@ -15,10 +13,8 @@ class Turma(Base):
     professor_id = Column(Integer, ForeignKey('professores.id'), nullable=False)
     ativo = Column(Boolean, default=True)
 
-    # Relacionamento com alunos
     alunos = relationship("Aluno", back_populates="turma", cascade="all, delete-orphan")
 
-    # Relacionamento com professor
     professor = relationship("Professor", back_populates="turmas")
 
     def to_dict(self):
@@ -28,12 +24,8 @@ class Turma(Base):
             "professor_id": self.professor_id,
             "ativo": self.ativo
         }
-
-# ——— Exceção customizada ———
 class TurmaNaoEncontrada(Exception):
     pass
-
-# ——— Service ———
 class TurmaService:
 
     @staticmethod

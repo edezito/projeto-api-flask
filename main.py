@@ -8,13 +8,11 @@ from routes.professor_routes import professores_blueprint
 from routes.turma_routes import turmas_blueprint
 from autenticacao import login_blueprint
 
+# ---------------- API ----------------
 app = Flask(__name__)
 app.config.from_object(Config)
 
-# Registrar Blueprints
 admin_blueprint = Blueprint('admin', __name__)
-
-# ROTA PRA RESETAR TD
 @admin_blueprint.route("/reseta", methods=['POST'])
 @login_requerido
 def resetar_dados():
@@ -30,15 +28,11 @@ app.register_blueprint(turmas_blueprint)
 app.register_blueprint(admin_blueprint)
 app.register_blueprint(login_blueprint)
 
-# Função para inicializar o banco de dados
+# ---------------- BANCO-DADOS ----------------
 def init_db():
-    # Criar todas as tabelas no banco de dados
     with app.app_context():
         BancoDados.Base.metadata.create_all(BancoDados.engine)
-
-# Chamada para inicializar o banco de dados ao rodar a aplicação
 init_db()
 
-# RODA A API
 if __name__ == '__main__':
     app.run(host=Config.HOST, port=Config.PORT, debug=Config.DEBUG)
