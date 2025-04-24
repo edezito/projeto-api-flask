@@ -10,14 +10,14 @@ turmas_ns = Namespace('turmas', description='Operações de gerenciamento de tur
 # Data models for Swagger documentation
 turma_model = turmas_ns.model('Turma', {
     'id': fields.Integer(readOnly=True, description='ID único da turma'),
-    'nome': fields.String(required=True, description='Nome da turma'),
-    'ano': fields.Integer(required=True, description='Ano letivo da turma'),
-    'periodo': fields.String(required=True, description='Período da turma (matutino/vespertino/noturno)')
+    'descricao': fields.String(required=True, description='Nome da turma'),
+    'professor_id': fields.Integer(required=True, description='ID do professor'),
+    'ativo': fields.Boolean(required=True, description='Turma está ativa ou inativa')
 })
 
 success_response = turmas_ns.model('SuccessResponse', {
-    'message': fields.String(description='Mensagem de sucesso'),
-    'data': fields.Raw(description='Dados retornados')
+    'message': fields.String(description='Mensagem de sucesso'),    
+    'data': fields.Raw(description='Dados retornados')  
 })
 
 error_response = turmas_ns.model('ErrorResponse', {

@@ -11,15 +11,16 @@ professores_ns = Namespace('professores', description='Operações de gerenciame
 professor_model = professores_ns.model('Professor', {
     'id': fields.Integer(readOnly=True, description='ID único do professor'),
     'nome': fields.String(required=True, description='Nome completo do professor'),
-    'email': fields.String(required=True, description='Email do professor'),
-    'disciplina': fields.String(required=True, description='Disciplina que o professor leciona')
+    'idade': fields.Integer(required=True, description='Idade do professor'),
+    'disciplina': fields.String(required=True, description='Disciplina que o professor leciona'),
+    'observacoes': fields.String(required=True, description='Observações sobre o professor')
 })
 
 # Modelo para respostas de sucesso
 success_response = professores_ns.model('SuccessResponse', {
     'message': fields.String(description='Mensagem de sucesso'),
     'data': fields.Raw(description='Dados retornados')
-})
+})  
 
 # Modelo para respostas de erro
 error_response = professores_ns.model('ErrorResponse', {
