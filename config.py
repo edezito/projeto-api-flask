@@ -1,24 +1,29 @@
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 
-# Carrega variáveis de ambiente do arquivo .env
-load_dotenv()
+# Carrega variáveis de ambiente
+env_path = Path('.') / '.env'
+load_dotenv(dotenv_path=env_path)
 
 class BancoDados:
-    # Configuração otimizada do SQLAlchemy
+    # Configuração do banco de dados
     DATABASE_URI = os.getenv('DATABASE_URL', 'sqlite:///gestao_escolar.db')
+    
     engine = create_engine(
         DATABASE_URI,
-        echo=True,  # Log de queries (desativar em produção)
-        pool_size=10,
-        max_overflow=20,
-        pool_pre_ping=True  # Verifica conexões antes de usar
+        echo=os.getenv('SQL_ECHO', 'False').lower() in ('true', '1', 't'),
+        pool_size=int(os.getenv('DB_POOL_SIZE', '5')),
+        max_overflow=int(os.getenv('DB_MAX_OVERFLOW', '10')),
+        pool_pre_ping=True,
+        pool_recycle=3600
     )
     
     Base = declarative_base()
     
+    # Configuração correta do sessionmaker
     Session = sessionmaker(
         bind=engine,
         autocommit=False,
@@ -29,7 +34,11 @@ class BancoDados:
     @staticmethod
     def get_session():
         """Retorna uma nova sessão do banco de dados"""
-        return BancoDados.Session()
+        try:
+            return BancoDados.Session()
+        except Exception as e:
+            BancoDados.engine.dispose()
+            raise ConnectionError(f"Falha ao estabelecer sessão: {str(e)}")
 
 class Config:
     # Configurações básicas
@@ -40,16 +49,8 @@ class Config:
     # Segurança
     SECRET_KEY = os.getenv('SECRET_KEY', os.urandom(24).hex())
     JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', os.urandom(24).hex())
+    JWT_ACCESS_TOKEN_EXPIRES = int(os.getenv('JWT_ACCESS_TOKEN_EXPIRES', '3600'))
     
-    # Configurações do SQLAlchemy
+    # SQLAlchemy
     SQLALCHEMY_DATABASE_URI = BancoDados.DATABASE_URI
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    SQLALCHEMY_ENGINE_OPTIONS = {
-        'pool_pre_ping': True,
-        'pool_recycle': 3600
-    }
-    
-    # Configurações adicionais
-    API_TITLE = "Gestão Escolar API"
-    API_VERSION = "1.0"
-    OPENAPI_VERSION = "3.0.3"

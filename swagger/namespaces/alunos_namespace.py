@@ -56,3 +56,13 @@ class AlunoResource(Resource):
         with BancoDados.SessionLocal() as session:
             AlunoService.excluir_aluno(session, id)
             return {'mensagem': 'Aluno excluído com sucesso'}, 200
+
+success_model = alunos_namespace.model('SuccessResponse', {
+    'mensagem': fields.String(description='Mensagem de sucesso', example='Operação realizada com sucesso')
+})
+
+pagination_params = {
+    'page': fields.Integer(description='Número da página', example=1, default=1),
+    'per_page': fields.Integer(description='Número de itens por página', example=20, default=20),
+    'order_by': fields.String(description='Campo para ordenação', example='nome', default='nome')
+}
