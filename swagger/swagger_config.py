@@ -1,24 +1,20 @@
-from flask import Blueprint
 from flask_restx import Api
-from .namespaces.alunos_namespace import alunos_namespace
+from flask import Blueprint
 
-aluno_bp = Blueprint('aluno', __name__, url_prefix='/api')
+api_blueprint = Blueprint('api', __name__, url_prefix='/api')
 
 api = Api(
-    aluno_bp,
+    api_blueprint,
+    title='API Gestão Escolar',
     version='1.0',
-    title='API Sistema Acadêmico',
-    description='Documentação interativa da API',
-    doc='/swagger',
+    description='Documentação completa da API',
+    doc='/swagger-ui',
+    security='Bearer Auth',
     authorizations={
         'Bearer Auth': {
             'type': 'apiKey',
             'in': 'header',
-            'name': 'Authorization',
-            'description': 'Digite: Bearer <seu_token_jwt>'
+            'name': 'Authorization'
         }
-    },
-    security='Bearer Auth'
+    }
 )
-
-api.add_namespace(alunos_namespace)

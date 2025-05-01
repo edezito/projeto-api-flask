@@ -1,112 +1,118 @@
-from functools import wraps
-from flask import request, jsonify
-from flask_restx import Namespace, Resource, fields
-from autenticacao import login_requerido
-from model.turma_model import TurmaService, TurmaNaoEncontrada
+from flask_restx import Resource, fields
+from service.login_requerido import login_requerido
+from controller.turma_controller import TurmaController
+from swagger.namespaces.turmas_namespaces import turmas_namespace
 
-# Create the Namespace for turmas
-turmas_ns = Namespace('turmas', description='Operações de gerenciamento de turmas')
-
-# Data models for Swagger documentation
-turma_model = turmas_ns.model('Turma', {
+# Modelos atualizados
+turma_model = turmas_namespace.model('Turma', {
     'id': fields.Integer(readOnly=True, description='ID único da turma'),
-    'descricao': fields.String(required=True, description='Nome da turma'),
-    'professor_id': fields.Integer(required=True, description='ID do professor'),
-    'ativo': fields.Boolean(required=True, description='Turma está ativa ou inativa')
+    'descricao': fields.String(required=True, description='Nome/descrição da turma'),
+    'professor_id': fields.Integer(required=True, description='ID do professor responsável'),
+    'ativo': fields.Boolean(default=True, description='Status da turma (ativo/inativo)'),
+    'quantidade_alunos': fields.Integer(description='Número de alunos na turma'),
+    'professor': fields.Nested(turmas_namespace.model('Professor', {
+        'id': fields.Integer,
+        'nome': fields.String
+    }), description='Professor responsável')
 })
 
-success_response = turmas_ns.model('SuccessResponse', {
-    'message': fields.String(description='Mensagem de sucesso'),    
-    'data': fields.Raw(description='Dados retornados')  
+turma_input_model = turmas_namespace.model('TurmaInput', {
+    'descricao': fields.String(required=True, description='Nome/descrição da turma'),
+    'professor_id': fields.Integer(required=True, description='ID do professor responsável'),
+    'ativo': fields.Boolean(default=True, description='Status da turma')
 })
 
-error_response = turmas_ns.model('ErrorResponse', {
-    'error': fields.String(description='Mensagem de erro')
+success_model = turmas_namespace.model('SuccessResponse', {
+    'mensagem': fields.String(description='Mensagem de sucesso'),
+    'turma_id': fields.Integer(description='ID da turma afetada')
 })
 
-# Error handling decorator
-def handle_errors(func):
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        try:
-            return func(*args, **kwargs)
-        except TurmaNaoEncontrada:
-            return {'error': 'Turma não encontrada'}, 404
-        except ValueError as e:
-            return {'error': str(e)}, 400
-        except Exception as e:
-            return {'error': f'Erro interno: {str(e)}'}, 500
-    return wrapper
+error_model = turmas_namespace.model('ErrorResponse', {
+    'erro': fields.String(description='Mensagem de erro'),
+    'detalhes': fields.String(description='Detalhes do erro')
+})
 
-@turmas_ns.route('/')
+# Filtros de consulta
+filtros_model = turmas_namespace.parser()
+filtros_model.add_argument('ativo', type=bool, required=False, help='Filtrar por status ativo/inativo')
+filtros_model.add_argument('professor_id', type=int, required=False, help='Filtrar por ID do professor')
+
+@turmas_namespace.route('/')
 class ListaTurmas(Resource):
-    @turmas_ns.doc(security='Bearer Auth')
-    @turmas_ns.marshal_list_with(turma_model)
-    @turmas_ns.response(404, 'Nenhuma turma encontrada', error_response)
-    @turmas_ns.response(500, 'Erro interno', error_response)
+    @turmas_namespace.doc(security='Bearer Auth')
+    @turmas_namespace.expect(filtros_model)
+    @turmas_namespace.marshal_list_with(turma_model)
+    @turmas_namespace.response(200, 'Lista de turmas obtida com sucesso')
+    @turmas_namespace.response(401, 'Não autorizado', error_model)
+    @turmas_namespace.response(500, 'Erro interno', error_model)
     @login_requerido
-    @handle_errors
     def get(self):
-        '''Lista todas as turmas cadastradas'''
-        turmas = TurmaService.listar_turmas()
-        if not turmas:
-            turmas_ns.abort(404, 'Nenhuma turma encontrada')
-        return turmas, 200
+        '''Lista todas as turmas com possibilidade de filtros'''
+        return TurmaController.listar_turmas()
 
-    @turmas_ns.doc(security='Bearer Auth')
-    @turmas_ns.expect(turma_model)
-    @turmas_ns.marshal_with(turma_model, code=201)
-    @turmas_ns.response(400, 'Dados inválidos', error_response)
-    @turmas_ns.response(500, 'Erro interno', error_response)
+    @turmas_namespace.doc(security='Bearer Auth')
+    @turmas_namespace.expect(turma_input_model)
+    @turmas_namespace.marshal_with(turma_model, code=201)
+    @turmas_namespace.response(201, 'Turma criada com sucesso')
+    @turmas_namespace.response(400, 'Dados inválidos', error_model)
+    @turmas_namespace.response(401, 'Não autorizado', error_model)
+    @turmas_namespace.response(500, 'Erro interno', error_model)
     @login_requerido
-    @handle_errors
     def post(self):
         '''Cria uma nova turma'''
-        data = request.get_json()
-        if not data:
-            turmas_ns.abort(400, 'Dados não fornecidos')
-        
-        turma = TurmaService.criar_turma(data)
-        return turma, 201
+        return TurmaController.criar_turma()
 
-@turmas_ns.route('/<int:id_turma>')
-@turmas_ns.param('id_turma', 'ID da turma')
+@turmas_namespace.route('/<int:id_turma>')
+@turmas_namespace.param('id_turma', 'ID da turma')
 class TurmaResource(Resource):
-    @turmas_ns.doc(security='Bearer Auth')
-    @turmas_ns.marshal_with(turma_model)
-    @turmas_ns.response(404, 'Turma não encontrada', error_response)
-    @turmas_ns.response(500, 'Erro interno', error_response)
+    @turmas_namespace.doc(security='Bearer Auth')
+    @turmas_namespace.marshal_with(turma_model)
+    @turmas_namespace.response(200, 'Turma encontrada')
+    @turmas_namespace.response(404, 'Turma não encontrada', error_model)
+    @turmas_namespace.response(401, 'Não autorizado', error_model)
+    @turmas_namespace.response(500, 'Erro interno', error_model)
     @login_requerido
-    @handle_errors
     def get(self, id_turma):
         '''Obtém detalhes de uma turma específica'''
-        turma = TurmaService.turma_por_id(id_turma)
-        return turma, 200
+        return TurmaController.buscar_por_id_turma(id_turma)
 
-    @turmas_ns.doc(security='Bearer Auth')
-    @turmas_ns.expect(turma_model)
-    @turmas_ns.marshal_with(turma_model)
-    @turmas_ns.response(400, 'Dados inválidos', error_response)
-    @turmas_ns.response(404, 'Turma não encontrada', error_response)
-    @turmas_ns.response(500, 'Erro interno', error_response)
+    @turmas_namespace.doc(security='Bearer Auth')
+    @turmas_namespace.expect(turma_input_model)
+    @turmas_namespace.marshal_with(turma_model)
+    @turmas_namespace.response(200, 'Turma atualizada com sucesso')
+    @turmas_namespace.response(400, 'Dados inválidos', error_model)
+    @turmas_namespace.response(404, 'Turma não encontrada', error_model)
+    @turmas_namespace.response(401, 'Não autorizado', error_model)
+    @turmas_namespace.response(500, 'Erro interno', error_model)
     @login_requerido
-    @handle_errors
     def put(self, id_turma):
         '''Atualiza os dados de uma turma'''
-        data = request.get_json()
-        if not data:
-            turmas_ns.abort(400, 'Dados não fornecidos')
-        
-        turma = TurmaService.atualizar_turma(id_turma, data)
-        return turma, 200
+        return TurmaController.atualizar_turma(id_turma)
 
-    @turmas_ns.doc(security='Bearer Auth')
-    @turmas_ns.response(200, 'Turma removida', success_response)
-    @turmas_ns.response(404, 'Turma não encontrada', error_response)
-    @turmas_ns.response(500, 'Erro interno', error_response)
+@turmas_namespace.route('/<int:id_turma>/desativar')
+@turmas_namespace.param('id_turma', 'ID da turma a ser desativada')
+class DesativarTurma(Resource):
+    @turmas_namespace.doc(security='Bearer Auth')
+    @turmas_namespace.marshal_with(success_model)
+    @turmas_namespace.response(200, 'Turma desativada com sucesso')
+    @turmas_namespace.response(404, 'Turma não encontrada', error_model)
+    @turmas_namespace.response(401, 'Não autorizado', error_model)
+    @turmas_namespace.response(500, 'Erro interno', error_model)
     @login_requerido
-    @handle_errors
+    def patch(self, id_turma):
+        '''Desativa uma turma (exclusão lógica)'''
+        return TurmaController.desativar_turma(id_turma)
+
+@turmas_namespace.route('/<int:id_turma>/excluir')
+@turmas_namespace.param('id_turma', 'ID da turma a ser excluída permanentemente')
+class ExcluirTurma(Resource):
+    @turmas_namespace.doc(security='Bearer Auth')
+    @turmas_namespace.marshal_with(success_model)
+    @turmas_namespace.response(200, 'Turma excluída permanentemente')
+    @turmas_namespace.response(404, 'Turma não encontrada', error_model)
+    @turmas_namespace.response(401, 'Não autorizado', error_model)
+    @turmas_namespace.response(500, 'Erro interno', error_model)
+    @login_requerido
     def delete(self, id_turma):
-        '''Remove uma turma do sistema'''
-        TurmaService.excluir_turma(id_turma)
-        return {'message': 'Turma removida com sucesso'}, 200
+        '''Remove permanentemente uma turma do sistema'''
+        return TurmaController.excluir_turma(id_turma)

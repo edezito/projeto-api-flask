@@ -1,41 +1,43 @@
 from flask_restx import Resource
-from autenticacao import login_requerido
-from swagger.namespaces.alunos_namespace import alunos_namespace, aluno_model, success_model
+from flask import request
+from service.login_requerido import login_requerido
 from controller.aluno_controller import AlunoController
+from swagger.namespaces.alunos_namespace import alunos_namespace, aluno_model, success_model, pagination_params
 
 @alunos_namespace.route('/')
-class ListaAlunos(Resource):
-    @alunos_namespace.doc(security='Bearer Auth')
+class AlunoListResource(Resource):
+    @alunos_namespace.doc(security='Bearer Auth', params=pagination_params)
     @alunos_namespace.marshal_list_with(aluno_model)
     @login_requerido
     def get(self):
-        return AlunoController.listar()
+        filters = {
+            'page': request.args.get('page', 1, type=int),
+            'per_page': request.args.get('per_page', 20, type=int),
+            'order_by': request.args.get('order_by', 'nome')
+        }
+        return AlunoController.listar(**filters)
 
-    @alunos_namespace.doc(security='Bearer Auth')
     @alunos_namespace.expect(aluno_model)
     @alunos_namespace.marshal_with(success_model, code=201)
     @login_requerido
     def post(self):
         return AlunoController.criar()
 
-@alunos_namespace.route('/<int:id_aluno>')
-@alunos_namespace.param('id_aluno', 'ID do aluno')
-class AlunoResource(Resource):
-    @alunos_namespace.doc(security='Bearer Auth')
+@alunos_namespace.route('/<int:aluno_id>')
+@alunos_namespace.param('aluno_id', 'ID único do aluno')
+class AlunoDetailResource(Resource):
     @alunos_namespace.marshal_with(aluno_model)
     @login_requerido
-    def get(self, id_aluno):
-        return AlunoController.buscar_por_id(id_aluno)
+    def get(self, aluno_id):
+        return AlunoController.buscar_por_id(aluno_id)
 
-    @alunos_namespace.doc(security='Bearer Auth')
     @alunos_namespace.expect(aluno_model)
     @alunos_namespace.marshal_with(success_model)
     @login_requerido
-    def put(self, id_aluno):
-        return AlunoController.atualizar(id_aluno)
+    def put(self, aluno_id):
+        return AlunoController.atualizar(aluno_id)
 
-    @alunos_namespace.doc(security='Bearer Auth')
-    @alunos_namespace.response(200, 'Aluno removido com sucesso')
+    @alunos_namespace.marshal_with(success_model)
     @login_requerido
-    def delete(self, id_aluno):
-        return AlunoController.excluir(id_aluno)
+    def delete(self, aluno_id):
+        return AlunoController.excluir(aluno_id)

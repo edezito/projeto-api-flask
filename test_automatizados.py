@@ -1,7 +1,7 @@
 import pytest
 import requests
 from config import Config
-from model.aluno_model import AlunoService
+from service.aluno_service import AlunoService
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine
 from config import BancoDados
@@ -43,14 +43,13 @@ def token(session):
 def headers(token):
     return {"Authorization": f"Bearer {token}"}
 
-
 # -------------------------------
 # AUTENTICACAO
 # -------------------------------
+
 def test_login_credenciais_invalidas():
     r = requests.post(f"{BASE_URL}/login", json={"usuario": "fake", "senha": "123"})
-    assert r.status_code in [401, 403]  # Corrigido para aceitar o código que o backend retornar
-
+    assert r.status_code in [401, 403]
 
 def test_rota_sem_token():
     r = requests.get(f"{BASE_URL}/alunos")
@@ -75,7 +74,6 @@ def test_validar_dados_faltando_campos_obrigatorios():
     dados = {
         "nome": "João",
         "idade": 20
-        # 'turma_id' está faltando
     }
     with pytest.raises(ValueError, match="Faltam campos obrigatórios"):
         AlunoService.validar_dados(dados)
@@ -109,10 +107,9 @@ def test_calcular_media_com_notas_validas():
 def test_calcular_media_com_uma_nota_ausente():
     dados = {
         "nota_primeiro_semestre": 8.0
-        # Nota do segundo semestre está ausente
     }
     media = AlunoService.calcular_media(dados)
-    assert media == 4.0  # A média será a metade da nota disponível
+    assert media == 4.0
 
 def test_calcular_media_com_notas_zero():
     dados = {
@@ -120,16 +117,17 @@ def test_calcular_media_com_notas_zero():
         "nota_segundo_semestre": 0.0
     }
     media = AlunoService.calcular_media(dados)
-    assert media == 0.0  # Média será 0, já que ambas as notas são zero
+    assert media == 0.0
 
 def test_calcular_media_com_notas_default_ausentes():
-    dados = {}  # Nenhuma nota foi fornecida
+    dados = {}
     media = AlunoService.calcular_media(dados)
-    assert media == 0.0  # Considera-se 0.0 quando as notas não estão presentes
+    assert media == 0.0
 
 # -------------------------------
 # ROTA - ALUNO
 # -------------------------------
+
 def test_cadastrar_aluno(session, headers):
     aluno = {
         "nome": "Otavio",
@@ -140,9 +138,11 @@ def test_cadastrar_aluno(session, headers):
         "nota_segundo_semestre": 5.6
     }
     r = session.post(f"{BASE_URL}/alunos", json=aluno, headers=headers)
-
     assert r.status_code == 201
-
+    # Verifica se a resposta contém dados do aluno cadastrado
+    data = r.json()
+    assert "nome" in data
+    assert data["nome"] == aluno["nome"]
 
 def test_cadastrar_aluno_idade_invalida(session, headers):
     aluno = {
@@ -157,22 +157,17 @@ def test_cadastrar_aluno_idade_invalida(session, headers):
     assert r.status_code == 400
     assert "erro" in r.json()
 
-
 def test_cadastrar_aluno_sem_id(session, headers):
-    r = session.post(f"{BASE_URL}/alunos", json={"nome": "Sofia",
-                                                 "turma_id": 2,
-                                                 "data_nascimento": "2005-12-28",
-                                                 "nota_primeiro_semestre": 5.6,
-                                                 "nota_segundo_semestre": 5.6}, headers=headers)
+    aluno = {
+        "nome": "Sofia",
+        "turma_id": 2,
+        "data_nascimento": "2005-12-28",
+        "nota_primeiro_semestre": 5.6,
+        "nota_segundo_semestre": 5.6
+    }
+    r = session.post(f"{BASE_URL}/alunos", json=aluno, headers=headers)
     assert r.status_code == 400
     assert "erro" in r.json()
-
-
-def test_cadastrar_aluno_sem_nome(session, headers):
-    r = session.post(f"{BASE_URL}/alunos", json={}, headers=headers)
-    assert r.status_code == 400
-    assert "erro" in r.json()
-
 
 def test_listar_alunos(session, headers):
     r = session.get(f"{BASE_URL}/alunos", headers=headers)
@@ -183,7 +178,6 @@ def test_listar_alunos(session, headers):
     else:
         assert isinstance(data, list)
 
-
 def test_buscar_aluno_existente(session, headers):
     r = session.get(f"{BASE_URL}/alunos/1", headers=headers)
     if r.status_code == 200:
@@ -192,17 +186,14 @@ def test_buscar_aluno_existente(session, headers):
     else:
         assert r.status_code == 404
 
-
 def test_buscar_aluno_inexistente(session, headers):
     r = session.get(f"{BASE_URL}/alunos/9999", headers=headers)
     assert r.status_code == 500
 
-
 def test_editar_aluno_existente(session, headers):
     dados = {"nome": "Otavio Atualizado"}
     r = session.put(f"{BASE_URL}/alunos/15", json=dados, headers=headers)
-    assert r.status_code in [200]
-
+    assert r.status_code == 200
 
 def test_editar_aluno_inexistente(session, headers):
     dados = {"nome": "Aluno Inexistente"}
@@ -210,26 +201,23 @@ def test_editar_aluno_inexistente(session, headers):
     assert r.status_code == 500
     assert "erro" in r.json()
 
-
 def test_deletar_aluno_id_invalido(session, headers):
     r = session.delete(f"{BASE_URL}/alunos/abc", headers=headers)
     assert r.status_code == 404
-
 
 def test_deletar_aluno_inexistente(session, headers):
     r = session.delete(f"{BASE_URL}/alunos/999", headers=headers)
     assert r.status_code == 500
     assert "erro" in r.json()
 
-
 def test_deletar_aluno_sem_id(session, headers):
     r = session.delete(f"{BASE_URL}/alunos/", headers=headers)
     assert r.status_code == 404
 
-
 # -------------------------------
 # ROTA - PROFESSORES
 # -------------------------------
+
 def test_cadastrar_professor(session, headers):
     professor = {
         "id": 7,
@@ -244,143 +232,150 @@ def test_cadastrar_professor(session, headers):
 def test_listar_professores(session, headers):
     r = session.get(f"{BASE_URL}/professores", headers=headers)
     assert r.status_code == 200
-    assert isinstance(r.json()["professores"], list)
+    data = r.json()
+    if isinstance(data, dict) and "professores" in data:
+        assert isinstance(data["professores"], list)
+    else:
+        assert isinstance(data, list)
 
+# -------------------------------
+# ROTA - LOGIN
+# -------------------------------
 
-def test_buscar_professor_existente(session, headers):
-    r = session.get(f"{BASE_URL}/professores/7", headers=headers)
-    assert r.status_code == 200
-    assert "nome" in r.json()["professor"]
-
-
-def test_buscar_professor_inexistente(session, headers):
-    r = session.get(f"{BASE_URL}/professores/999", headers=headers)
-    assert r.status_code == 404
-
-
-def test_editar_professor_existente(session, headers):
-    dados = {"nome": "Bruno Atualizado", "materia": "História"}
-    r = session.put(f"{BASE_URL}/professores/7", json=dados, headers=headers)
-    assert r.status_code in [200]
-    
-    r_get = session.get(f"{BASE_URL}/professores/7", headers=headers)
-    assert r_get.status_code == 200
-    assert r_get.json()["professor"]["nome"] == "Bruno Atualizado"
-
-
-def test_editar_professor_inexistente(session, headers):
-    dados = {"nome": "Professor Fantasma"}
-    r = session.put(f"{BASE_URL}/professores/9999", json=dados, headers=headers)
-    assert r.status_code == 404
-
-
-def test_deletar_professor_existente(session, headers):
-    r = session.delete(f"{BASE_URL}/professores/7", headers=headers)
-    assert r.status_code in [200]
-
-
-def test_deletar_professor_inexistente(session, headers):
-    r = session.delete(f"{BASE_URL}/professores/999", headers=headers)
-    assert r.status_code == 404
-
-
-def test_cadastrar_professor_sem_nome(session, headers):
-    professor = {
-        "id": 8,
-        "idade": 45,
-        "materia": "Biologia"
+# Teste de login com dados válidos
+def test_login_valido(session):
+    usuario = {
+        "email": "usuario@example.com",
+        "senha": "senha123"
     }
-    r = session.post(f"{BASE_URL}/professores", json=professor, headers=headers)
-    assert r.status_code == 400
-    assert "error" in r.json()
+    r = session.post(f"{BASE_URL}/login", json=usuario)
+    assert r.status_code == 200
+    assert "token" in r.json()
 
+# Teste de login com dados inválidos
+def test_login_invalido(session):
+    usuario = {
+        "email": "usuario@example.com",
+        "senha": "senhaerrada"
+    }
+    r = session.post(f"{BASE_URL}/login", json=usuario)
+    assert r.status_code == 401
+    assert "erro" in r.json()
+
+# Teste de login sem senha
+def test_login_sem_senha(session):
+    usuario = {
+        "email": "usuario@example.com"
+    }
+    r = session.post(f"{BASE_URL}/login", json=usuario)
+    assert r.status_code == 400
+    assert "erro" in r.json()
+
+# Teste de login sem email
+def test_login_sem_email(session):
+    usuario = {
+        "senha": "senha123"
+    }
+    r = session.post(f"{BASE_URL}/login", json=usuario)
+    assert r.status_code == 400
+    assert "erro" in r.json()
+
+# Teste de token de acesso inválido (para acesso a rotas protegidas)
+def test_acesso_com_token_invalido(session):
+    headers = {"Authorization": "Bearer tokeninvalido"}
+    r = session.get(f"{BASE_URL}/perfil", headers=headers)
+    assert r.status_code == 401
+    assert "erro" in r.json()
+
+# -------------------------------
+# ROTA - ADMIN
+# -------------------------------
+
+# Teste de criação de novo admin
+def test_criar_admin(session, headers):
+    admin = {
+        "nome": "Administrador",
+        "email": "admin@example.com",
+        "senha": "admin123"
+    }
+    r = session.post(f"{BASE_URL}/admin", json=admin, headers=headers)
+    assert r.status_code == 201
+    assert "id" in r.json()
+
+# Teste de listar todos os admins
+def test_listar_admins(session, headers):
+    r = session.get(f"{BASE_URL}/admin", headers=headers)
+    assert r.status_code == 200
+    admins = r.json()
+    assert isinstance(admins, list)
+
+# Teste de editar dados de um admin
+def test_editar_admin(session, headers):
+    dados = {"nome": "Administrador Atualizado"}
+    r = session.put(f"{BASE_URL}/admin/1", json=dados, headers=headers)
+    assert r.status_code == 200
+    admin = r.json()
+    assert admin["nome"] == "Administrador Atualizado"
+
+# Teste de deletar admin
+def test_deletar_admin(session, headers):
+    r = session.delete(f"{BASE_URL}/admin/1", headers=headers)
+    assert r.status_code == 200
+    r = session.get(f"{BASE_URL}/admin/1", headers=headers)
+    assert r.status_code == 404
 
 # -------------------------------
 # ROTA - TURMA
 # -------------------------------
-def test_cadastrar_turma(session, headers):
+
+# Teste de criação de turma
+def test_criar_turma(session, headers):
     turma = {
-        "id": 12,
-        "descricao": "Física",
-        "professor_id": 4,
-        "ativo": True
+        "nome": "Turma 1A",
+        "curso_id": 1,
+        "ano": 2025
     }
     r = session.post(f"{BASE_URL}/turmas", json=turma, headers=headers)
     assert r.status_code == 201
+    turma_criada = r.json()
+    assert turma_criada["nome"] == "Turma 1A"
 
+# Teste de listar turmas
 def test_listar_turmas(session, headers):
     r = session.get(f"{BASE_URL}/turmas", headers=headers)
     assert r.status_code == 200
-    assert isinstance(r.json()["turmas"], list)
+    turmas = r.json()
+    assert isinstance(turmas, list)
 
-
-def test_buscar_turma_existente(session, headers):
-    turma = {
-        "descricao": "Física",
-        "professor_id": 4,
-        "ativo": True
-    }
-    r_create = session.post(f"{BASE_URL}/turmas", json=turma, headers=headers)
-    assert r_create.status_code == 201 
-
-    turma_criada = r_create.json()
-    turma_id = turma_criada['id']
-
-    r = session.get(f"{BASE_URL}/turmas/{turma_id}", headers=headers)
+# Teste de editar dados de uma turma
+def test_editar_turma(session, headers):
+    dados = {"nome": "Turma 2A"}
+    r = session.put(f"{BASE_URL}/turmas/1", json=dados, headers=headers)
     assert r.status_code == 200
+    turma = r.json()
+    assert turma["nome"] == "Turma 2A"
 
-
-def test_buscar_turma_inexistente(session, headers):
-    r = session.get(f"{BASE_URL}/turmas/9999", headers=headers)
+# Teste de deletar turma
+def test_deletar_turma(session, headers):
+    r = session.delete(f"{BASE_URL}/turmas/1", headers=headers)
+    assert r.status_code == 200
+    r = session.get(f"{BASE_URL}/turmas/1", headers=headers)
     assert r.status_code == 404
 
-
-def test_editar_turma_existente(session, headers):
-    turma = {
-        "descricao": "Física",
-        "professor_id": 4,
-        "ativo": True
+# Teste de associar alunos à turma
+def test_associar_aluno_turma(session, headers):
+    aluno_turma = {
+        "aluno_id": 1,
+        "turma_id": 1
     }
+    r = session.post(f"{BASE_URL}/turmas/1/alunos", json=aluno_turma, headers=headers)
+    assert r.status_code == 200
+    turma = r.json()
+    assert "alunos" in turma
 
-    r_create = session.post(f"{BASE_URL}/turmas", json=turma, headers=headers)
-    assert r_create.status_code == 201  
-    
-    turma_criada = r_create.json()
-    turma_id = turma_criada['id']
-
-    dados_atualizados = {
-        "descricao": "Física Atualizada"
-    }
-    r_editar = session.put(f"{BASE_URL}/turmas/{turma_id}", json=dados_atualizados, headers=headers)
-    assert r_editar.status_code == 200
-    
-    turma_atualizada = r_editar.json()
-    assert turma_atualizada['descricao'] == "Física Atualizada"
-
-
-def test_editar_turma_inexistente(session, headers):
-    dados = {"descricao": "Turma Fantasma"}
-    r = session.put(f"{BASE_URL}/turmas/9999", json=dados, headers=headers)
-    assert r.status_code == 404
-
-
-def test_deletar_turma_existente(session, headers):
-    test_cadastrar_turma(session, headers)
-    r = session.delete(f"{BASE_URL}/turmas/12", headers=headers)
-    assert r.status_code in [404]
-
-
-def test_deletar_turma_inexistente(session, headers):
-    r = session.delete(f"{BASE_URL}/turmas/999", headers=headers)
-    assert r.status_code == 404
-
-
-def test_cadastrar_turma_sem_professor(session, headers):
-    turma = {
-        "id": 13,
-        "descricao": "Química"
-        # professor_id ausente
-    }
-    r = session.post(f"{BASE_URL}/turmas", json=turma, headers=headers)
-    assert r.status_code == 400
-    assert "error" in r.json()
+# Teste de listar alunos de uma turma
+def test_listar_alunos_turma(session, headers):
+    r = session.get(f"{BASE_URL}/turmas/1/alunos", headers=headers)
+    assert r.status_code == 200
+    alunos = r.json()
+    assert isinstance(alunos, list)

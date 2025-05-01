@@ -1,53 +1,43 @@
-from flask import Blueprint, Flask, jsonify
-from config import BancoDados, Config
-from autenticacao import login_requerido
-from model import aluno_model, professor_model, turma_model
+from flask import Flask
+from flask_cors import CORS
+from swagger.swagger_config import api, api_blueprint
+
 from swagger.namespaces.alunos_namespace import alunos_namespace
+from swagger.namespaces.login_namespace import login_namespace
+from swagger.namespaces.admin_namespaces import admin_namespace
+from swagger.namespaces.professor_namespace import professores_namespace
+from swagger.namespaces.turmas_namespaces import turmas_namespace
 
-from routes.aluno_routes import alunos_namespace
-from routes.professor_routes import professores_ns
-from routes.turma_routes import turmas_ns
+from config import BancoDados
 
-from autenticacao import login_blueprint, login_ns
+import routes.login_routes
+import routes.professor_routes
+import routes.turma_routes
 
-# ---------------- FLASK APP ----------------
+
 app = Flask(__name__)
-app.config.from_object(Config)
+app.config['DEBUG'] = True
 
-# Registrando os Namespaces diretamente
-app.register_blueprint(alunos_namespace)
+CORS(app)
 
+# Banco de dados
+with app.app_context():
+    BancoDados.Base.metadata.create_all(BancoDados.engine)
 
-#api.add_namespace(professores_ns)
-#api.add_namespace(turmas_ns)
-#api.add_namespace(login_ns)
+# Swagger
+api.add_namespace(admin_namespace)
+api.add_namespace(login_namespace)
+api.add_namespace(alunos_namespace)
+api.add_namespace(professores_namespace)
+api.add_namespace(turmas_namespace)
 
-# ---------------- ENDPOINT ADMIN ----------------
-admin_blueprint = Blueprint('admin', __name__)
+# Registra o blueprint do Swagger
+app.register_blueprint(api_blueprint)
 
-@admin_blueprint.route("/reseta", methods=['POST'])
-@login_requerido
-def resetar_dados():
-    aluno_model.BancoDados["alunos"] = []
-    professor_model.BancoDados["professores"] = []
-    turma_model.BancoDados["turma"] = []
-    return jsonify({"mensagem": "Dados resetados com sucesso!"}), 200
+# Rota de Health Check
+@app.route('/health')
+def health():
+    return {'status': 'healthy'}, 200  # Explicitando o código de status
 
-app.register_blueprint(admin_blueprint)
-app.register_blueprint(login_blueprint)
-
-# ---------------- BANCO DE DADOS ----------------
-def init_db():
-    with app.app_context():
-        BancoDados.Base.metadata.create_all(BancoDados.engine)
-
-init_db()
-
-# ---------------- MAIN ----------------
 if __name__ == '__main__':
-    app.run(host=Config.HOST)
-
-#atualizar controller
-#atualizar testes
-#atualizar docker
-#atualizar render
+    app.run()
