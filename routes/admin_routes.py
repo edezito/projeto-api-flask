@@ -1,7 +1,7 @@
 from datetime import datetime
 from flask_restx import Namespace, Resource, fields
 from controller.admin_controler import SistemaController
-from service.autenticacao import login_requerido
+from service.login_requerido import login_requerido
 
 # Criação do namespace
 admin_ns = Namespace('admin', description='Operações administrativas', path='/admin')
@@ -18,10 +18,10 @@ class AdminReset(Resource):
     @admin_ns.doc(
         security='Bearer Auth',
         responses={
-            200: ('Success', reset_response_model),
+            200: ('Sucesso', reset_response_model),
             401: 'Unauthorized',
             403: 'Forbidden',
-            500: 'Internal Server Error'
+            500: 'Erro interno'
         }
     )
     @admin_ns.marshal_with(reset_response_model)
@@ -41,8 +41,7 @@ class AdminReset(Resource):
         # Chama a função de reset
         response, status_code = SistemaController.resetar_dados()
         
-        # Adiciona o timestamp à resposta
-        response_json = response.get_json()
-        response_json['timestamp'] = datetime.utcnow().isoformat()
+        # Prepara a resposta e adiciona o timestamp
+        response['timestamp'] = datetime.utcnow().isoformat()
 
-        return response_json, status_code
+        return response, status_code

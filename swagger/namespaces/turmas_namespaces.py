@@ -3,7 +3,7 @@ from flask_restx import Namespace, fields
 # Criação do namespace
 turmas_namespace = Namespace('turmas', 
                      description='Operações de gerenciamento de turmas',
-                     path='/api/turmas')  # Path completo
+                     path='/turmas')  # Path completo
 
 # Modelos
 turma_model = turmas_namespace.model('Turma', {

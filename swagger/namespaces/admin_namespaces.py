@@ -1,5 +1,6 @@
-from flask_restx import Namespace, Resource, fields
 from datetime import datetime
+
+from flask_restx import Namespace, Resource, fields
 from controller.admin_controler import SistemaController  # ajuste o import conforme seu projeto
 
 # Cria o namespace

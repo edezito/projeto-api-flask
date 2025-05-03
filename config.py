@@ -24,12 +24,12 @@ class BancoDados:
     Base = declarative_base()
     
     # Configuração correta do sessionmaker
-    Session = sessionmaker(
+    SessionLocal = sessionmaker(
         bind=engine,
         autocommit=False,
         autoflush=False,
         expire_on_commit=True
-    )
+        )
 
     @staticmethod
     def get_session():

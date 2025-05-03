@@ -4,7 +4,7 @@ from flask_restx import Namespace, fields
 professores_namespace = Namespace(
     name='professores',
     description='Operações de gerenciamento de professores',
-    path='/api/professores'
+    path='/professores'
 )
 
 # Modelo do professor

@@ -3,14 +3,14 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm.exc import NoResultFound
 from service.aluno_service import AlunoService
 from model.turma_model import Turma
+from model.aluno_model import Aluno  # Importação do modelo Aluno
 from config import BancoDados
 from functools import wraps
 
 class AlunoController:
-    
+
     @staticmethod
     def _handle_response(success, message, data=None, status_code=200):
-        """Padroniza todas as respostas da API"""
         response = {
             'success': success,
             'message': message,
@@ -20,7 +20,6 @@ class AlunoController:
 
     @staticmethod
     def _get_turma_info(session, turma_id):
-        """Obtém informações da turma de forma segura"""
         if not turma_id:
             return None
         turma = session.query(Turma).get(turma_id)
@@ -28,25 +27,21 @@ class AlunoController:
 
     @staticmethod
     def _validate_aluno_data(data, is_update=False):
-        """Validação centralizada dos dados do aluno"""
         if not data:
             raise ValueError("Dados não fornecidos")
-        
         required_fields = ['nome', 'matricula', 'turma_id']
         if not is_update:
             for field in required_fields:
                 if field not in data:
                     raise ValueError(f"Campo obrigatório faltando: {field}")
-        
         if 'id' in data:
             raise ValueError("O ID não deve ser fornecido manualmente")
 
     @staticmethod
     def handle_db_errors(func):
-        """Decorator para tratamento centralizado de erros"""
         @wraps(func)
         def wrapper(*args, **kwargs):
-            session = BancoDados.Session()
+            session = BancoDados.SessionLocal()
             try:
                 result = func(session, *args, **kwargs)
                 session.commit()
@@ -70,19 +65,25 @@ class AlunoController:
     @staticmethod
     @handle_db_errors
     def listar(session, page=1, per_page=20, order_by='nome'):
-        """Lista alunos com paginação"""
-        alunos, total = AlunoService.listar_alunos(
-            session, 
-            page=page, 
-            per_page=per_page, 
+        alunos, total = AlunoController.listar_alunos(
+            session,
+            page=page,
+            per_page=per_page,
             order_by=order_by
         )
-        
+
+        alunos_dict = []
+        for aluno in alunos:
+            turma_info = AlunoController._get_turma_info(session, aluno.turma_id)
+            aluno_dict = aluno.to_dict(include_turma=True)
+            aluno_dict['turma'] = turma_info
+            alunos_dict.append(aluno_dict)
+
         return AlunoController._handle_response(
             True,
             "Lista de alunos recuperada com sucesso",
             {
-                'alunos': alunos,
+                'alunos': alunos_dict,
                 'pagination': {
                     'total': total,
                     'page': page,
@@ -95,18 +96,15 @@ class AlunoController:
     @staticmethod
     @handle_db_errors
     def criar(session):
-        """Cria um novo aluno"""
-        data = request.get_json()
-        AlunoController._validate_aluno_data(data)
-        
-        aluno = AlunoService.criar_aluno(session, data)
-        turma_info = AlunoController._get_turma_info(session, aluno['turma_id'])
-        
+        dados = request.get_json()
+        AlunoController._validate_aluno_data(dados)
+        aluno = AlunoController.criar(session, dados)
+        turma_info = AlunoController._get_turma_info(session, aluno.turma_id)
         return AlunoController._handle_response(
             True,
             "Aluno criado com sucesso",
             {
-                'aluno': aluno,
+                'aluno': aluno.to_dict(include_turma=True),
                 'turma': turma_info
             },
             201
@@ -115,32 +113,28 @@ class AlunoController:
     @staticmethod
     @handle_db_errors
     def buscar_por_id(session, id_aluno):
-        """Busca um aluno por ID"""
-        aluno = AlunoService.buscar_aluno_por_id(session, id_aluno)
-        turma_info = AlunoController._get_turma_info(session, aluno['turma_id'])
-        
-        aluno['turma'] = turma_info
+        aluno = AlunoController.buscar_por_id(session, id_aluno)
+        turma_info = AlunoController._get_turma_info(session, aluno.turma_id)
+        aluno_dict = aluno.to_dict(include_turma=True)
+        aluno_dict['turma'] = turma_info
         return AlunoController._handle_response(
             True,
             "Aluno encontrado com sucesso",
-            aluno
+            aluno_dict
         )
 
     @staticmethod
     @handle_db_errors
     def atualizar(session, id_aluno):
-        """Atualiza um aluno existente"""
         data = request.get_json()
         AlunoController._validate_aluno_data(data, is_update=True)
-        
-        aluno = AlunoService.atualizar_aluno(session, id_aluno, data)
-        turma_info = AlunoController._get_turma_info(session, aluno['turma_id'])
-        
+        aluno = AlunoController.atualizar(session, id_aluno, data)
+        turma_info = AlunoController._get_turma_info(session, aluno.turma_id)
         return AlunoController._handle_response(
             True,
             "Aluno atualizado com sucesso",
             {
-                'aluno': aluno,
+                'aluno': aluno.to_dict(include_turma=True),
                 'turma': turma_info
             }
         )
@@ -148,10 +142,9 @@ class AlunoController:
     @staticmethod
     @handle_db_errors
     def excluir(session, id_aluno):
-        """Remove um aluno"""
-        aluno = AlunoService.excluir_aluno(session, id_aluno)
+        aluno = AlunoController.excluir(session, id_aluno)
         return AlunoController._handle_response(
             True,
             "Aluno removido com sucesso",
-            {'id': aluno['id']}
+            {'id': aluno.id}
         )

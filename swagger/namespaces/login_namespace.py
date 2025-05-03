@@ -2,7 +2,7 @@ from flask_restx import Namespace, fields
 
 # Configuração do namespace
 login_namespace = Namespace(
-    'Autenticação',
+    'autenticação',
     description='Operações de autenticação e gerenciamento de tokens JWT',
     path='/autenticacao'
 )

@@ -2,7 +2,7 @@ from model.turma_model import Turma, TurmaNaoEncontrada
 from sqlalchemy.exc import SQLAlchemyError
 from config import BancoDados
 
-Session = BancoDados.Session
+Session = BancoDados.SessionLocal
 
 class TurmaService:
     """Serviço para operações relacionadas a turmas"""
