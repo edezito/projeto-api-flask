@@ -33,16 +33,15 @@ class BancoDados:
 
     @staticmethod
     def get_session():
-        """Retorna uma nova sessão do banco de dados"""
         try:
-            return BancoDados.Session()
+            return BancoDados.SessionLocal()
         except Exception as e:
             BancoDados.engine.dispose()
             raise ConnectionError(f"Falha ao estabelecer sessão: {str(e)}")
 
 class Config:
     # Configurações básicas
-    HOST = os.getenv('FLASK_HOST', '127.0.0.1')
+    HOST = os.getenv('FLASK_HOST', '0.0.0.0')
     PORT = int(os.getenv('FLASK_PORT', '5000'))
     DEBUG = os.getenv('FLASK_DEBUG', 'True').lower() in ('true', '1', 't')
     
