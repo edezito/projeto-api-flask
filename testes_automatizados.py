@@ -39,9 +39,6 @@ def auth_token(client, db_session):
     db_session.query(Usuario).filter(Usuario.id == usuario.id).delete()
     db_session.commit()
 
-# ----------------------------------
-# TESTES DE ADMIN
-# ----------------------------------
 def test_resetar_dados_sucesso(db_session, app):
     # Criação dos registros de teste
     professor = professor_model.Professor(nome="Teste Professor", idade=30, materia="inglês")
@@ -206,21 +203,21 @@ def test_buscar_aluno_por_id(mock_aluno_controller, session):
 def test_atualizar_aluno(mock_aluno_controller, session, client, mock_aluno_service):
     """Testa a atualização de um aluno"""
     # Cria um aluno no banco de dados
-    aluno_mock = Aluno(nome="Aluno Original", idade=20, turma_id=1)
+    aluno_mock = Aluno(nome="Aluno Original", idade=20, turma_id=4)
     session.add(aluno_mock)
     session.commit()
 
     # Configura o mock para retornar o aluno atualizado
-    aluno_atualizado = Aluno(nome="Aluno Atualizado", idade=20, turma_id=1)
+    aluno_atualizado = Aluno(nome="Aluno Atualizado", idade=23, turma_id=1)
     aluno_atualizado.id = aluno_mock.id
     mock_aluno_service.atualizar_aluno.return_value = aluno_atualizado
 
     # Dados de atualização
-    dados_update = {'nome': 'Aluno Atualizado', 'matricula': '54321'}
+    dados_update = {'nome': 'Aluno Atualizado', 'idade': 23}
 
-    # Simula a requisição PUT
+    # Simula a requisição PUT com o caminho correto da API
     response = client.put(
-        f"/alunos/{aluno_mock.id}",
+        f"/api/alunos/{aluno_mock.id}",  # Corrigido aqui
         data=json.dumps(dados_update),
         content_type='application/json'
     )
@@ -254,6 +251,13 @@ def test_excluir_aluno(mock_aluno_controller, session):
 # ----------------------------------
 # TESTANDO CONTROLLER DE PROFESSORES
 # ----------------------------------
+
+from unittest.mock import patch
+import pytest
+
+from controller.professor_controller import ProfessorController
+
+
 @pytest.fixture
 def mock_professor_service():
     with patch('controller.professor_controller.ProfessorService') as mock_service:
@@ -305,3 +309,135 @@ def test_excluir_professor(mock_professor_service):
     mock_professor_service.excluir_professor.return_value = False
     response = ProfessorController.excluir_professor(1)
     assert response == ({'error': 'Professor não encontrado'}, 404)
+
+# ----------------------------------
+# TESTANDO CONTROLLER DE TURMAS
+# ----------------------------------
+
+import pytest
+from flask import Flask
+from http import HTTPStatus
+from unittest.mock import patch, MagicMock
+from controller.turma_controller import TurmaController
+from service.turma_service import TurmaNaoEncontrada
+
+@pytest.fixture
+def app():
+    app = Flask(__name__)
+    app.config['TESTING'] = True
+    return app
+
+@pytest.fixture
+def client(app):
+    return app.test_client()
+
+@pytest.fixture
+def turma_mock():
+    turma = MagicMock()
+    turma.id = 1
+    turma.nome = "Turma A"
+    turma.ativo = True
+    turma.professor_id = 1
+    turma.to_dict.return_value = {
+        'id': 1,
+        'nome': 'Turma A',
+        'ativo': True,
+        'professor_id': 1
+    }
+    return turma
+
+def test_listar_turmas_sucesso(app, turma_mock):
+    with app.test_request_context('/turmas?ativo=true&professor_id=1'):
+        with patch('controller.turma_controller.TurmaService.listar_turmas') as mock_service:
+            mock_service.return_value = [turma_mock]
+            
+            response, status_code = TurmaController.listar_turmas()
+            
+            assert status_code == HTTPStatus.OK
+            assert isinstance(response, list)
+            assert len(response) == 1
+            assert response[0]['id'] == 1
+
+def test_listar_turmas_erro(app):
+    with app.test_request_context('/turmas'):
+        with patch('controller.turma_controller.TurmaService.listar_turmas') as mock_service:
+            mock_service.side_effect = Exception("Erro no banco de dados")
+            
+            response, status_code = TurmaController.listar_turmas()
+            assert status_code == HTTPStatus.INTERNAL_SERVER_ERROR
+            assert response['message'] == 'Erro no banco de dados'
+
+def test_criar_turma_sucesso(app, turma_mock):
+    with app.test_request_context('/turmas', json={'nome': 'Turma A', 'professor_id': 1}):
+        with patch('controller.turma_controller.TurmaService.criar_turma') as mock_service:
+            mock_service.return_value = turma_mock
+            
+            response, status_code = TurmaController.criar_turma()
+            
+            assert status_code == HTTPStatus.CREATED
+            assert response['id'] == 1
+
+def test_criar_turma_dados_invalidos(app):
+    with app.test_request_context('/turmas', json={'id': 1}):
+        response, status_code = TurmaController.criar_turma()
+        assert status_code == HTTPStatus.BAD_REQUEST
+        assert response['message'] == "O ID não deve ser fornecido manualmente"
+
+def test_buscar_por_id_sucesso(app, turma_mock):
+    with app.test_request_context('/turmas/1'):
+        with patch('controller.turma_controller.TurmaService.buscar_turma_por_id') as mock_service:
+            mock_service.return_value = turma_mock
+            
+            response, status_code = TurmaController.buscar_por_id_turma(1)
+            
+            assert status_code == HTTPStatus.OK
+            assert response['id'] == 1
+
+def test_buscar_por_id_nao_encontrado(app):
+    with app.test_request_context('/turmas/999'):
+        with patch('controller.turma_controller.TurmaService.buscar_turma_por_id') as mock_service:
+            mock_service.side_effect = TurmaNaoEncontrada("Turma não encontrada")
+            
+            response, status_code = TurmaController.buscar_por_id_turma(999)
+            assert status_code == HTTPStatus.NOT_FOUND
+            assert response['message'] == 'Turma não encontrada'
+
+def test_atualizar_turma_sucesso(app, turma_mock):
+    with app.test_request_context('/turmas/1', json={'nome': 'Turma Atualizada'}):
+        with patch('controller.turma_controller.TurmaService.atualizar_turma') as mock_service:
+            mock_service.return_value = turma_mock
+            
+            response, status_code = TurmaController.atualizar_turma(1)
+            
+            assert status_code == HTTPStatus.OK
+            assert response['id'] == 1
+
+def test_atualizar_turma_nao_encontrada(app):
+    with app.test_request_context('/turmas/999', json={'nome': 'Turma Atualizada'}):
+        with patch('controller.turma_controller.TurmaService.atualizar_turma') as mock_service:
+            mock_service.side_effect = TurmaNaoEncontrada("Turma não encontrada")
+            
+            response, status_code = TurmaController.atualizar_turma(999)
+            assert status_code == HTTPStatus.NOT_FOUND
+            assert response['message'] == 'Turma não encontrada'
+
+def test_desativar_turma_sucesso(app, turma_mock):
+    with app.test_request_context('/turmas/1/desativar'):
+        with patch('controller.turma_controller.TurmaService.desativar_turma') as mock_service:
+            mock_service.return_value = turma_mock
+            
+            response, status_code = TurmaController.desativar_turma(1)
+            
+            assert status_code == HTTPStatus.OK
+            assert response['mensagem'] == 'Turma desativada com sucesso'
+            assert response['turma_id'] == 1
+
+def test_excluir_turma_sucesso(app):
+    with app.test_request_context('/turmas/1'):
+        with patch('controller.turma_controller.TurmaService.excluir_turma') as mock_service:
+            mock_service.return_value = None
+            
+            response, status_code = TurmaController.excluir_turma(1)
+            
+            assert status_code == HTTPStatus.OK
+            assert response['mensagem'] == 'Turma excluída permanentemente'

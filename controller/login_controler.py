@@ -1,178 +1,116 @@
-from flask import request, jsonify
+from flask import request, current_app
 from werkzeug.security import check_password_hash
 from flask_jwt_extended import (
     create_access_token,
     create_refresh_token,
     jwt_required,
-    get_jwt_identity,
+    get_jwt_identity
 )
 from datetime import timedelta
-from service.autenticacao_services import AuthService
-from model.usuario_model import Usuario
+from functools import wraps
+from model.usuario_model import Usuario, db
 
 class LoginController:
     
     @staticmethod
+    def handle_errors(f):
+        @wraps(f)
+        def wrapper(*args, **kwargs):
+            try:
+                return f(*args, **kwargs)
+            except Exception as e:
+                current_app.logger.error(f"Error in {f.__name__}: {str(e)}", exc_info=True)
+                return {'message': 'Internal server error'}, 500
+        return wrapper
+
+    @staticmethod
+    @handle_errors
     def autenticar_usuario():
-        """Autenticação do usuário com base no nickname e senha fornecidos"""
-        try:
-            dados = request.get_json()
-
-            # Verifica se os dados de login estão completos
-            if not dados or 'usuario' not in dados or 'senha' not in dados:
-                return jsonify({'message': 'Dados de login incompletos'}), 400
-
-            usuario = Usuario.query.filter_by(usuario=dados['usuario']).first()
-
-            if not usuario or not check_password_hash(usuario.senha, dados['senha']):
-                return jsonify({
-                    'status': 'error',
-                    'message': 'Usuário ou senha incorretos',
-                    'code': 401
-                }), 401
-
-            # Criação do access token e refresh token
-            access_token = create_access_token(
-                identity=usuario.id,
-                expires_delta=timedelta(hours=1),
-                additional_claims={
-                    'roles': [role.nome for role in usuario.roles],
-                    'email': usuario.email
-                }
-            )
-
-            refresh_token = create_refresh_token(identity=usuario.id)
-
-            user_data = {
-                'id': usuario.id,
-                'usuario': usuario.nickname,
-                'nome': usuario.nome
+        data = request.get_json(silent=True)
+        if not data:
+            return {'message': 'Dados não fornecidos'}, 400
+            
+        usuario = data.get('usuario')
+        senha = data.get('senha')
+        
+        if not usuario or not senha:
+            return {'message': 'Credenciais faltando'}, 400
+        
+        user = Usuario.query.filter_by(nickname=usuario).first()
+        
+        if not user or not check_password_hash(user.senha, senha):
+            return {'message': 'Usuário ou senha incorretos'}, 401
+        
+        access_token = create_access_token(
+            identity=user.id,
+            additional_claims={
+                'nickname': user.nickname,
+                'nome': user.nome
             }
-
-            return jsonify({
-                'access_token': access_token,
-                'refresh_token': refresh_token,
-                'token_type': 'Bearer',
-                'expires_in': 3600,
-                'user_info': user_data
-            }), 200
-
-        except Exception as e:
-            return jsonify({
-                'status': 'error',
-                'message': 'Erro interno no servidor',
-                'code': 500,
-                'details': str(e)
-            }), 500
+        )
+        refresh_token = create_refresh_token(identity=user.id)
+        
+        return {
+            'access_token': access_token,
+            'refresh_token': refresh_token,
+            'user_info': user.to_dict()
+        }, 200
 
     @staticmethod
     @jwt_required(refresh=True)
+    @handle_errors
     def refresh_token():
-        """Renova o access token usando o refresh token"""
-        try:
-            identity = get_jwt_identity()
-            usuario = Usuario.query.get(identity)
+        user_id = get_jwt_identity()
+        user = Usuario.query.get(user_id)
 
-            if not usuario:
-                return jsonify({'message': 'Usuário não encontrado'}), 401
+        if not user:
+            return {'message': 'Usuário não encontrado'}, 404
 
-            new_token = create_access_token(
-                identity=usuario.id,
-                expires_delta=timedelta(hours=1),
-                additional_claims={
-                    'roles': [role.nome for role in usuario.roles],
-                    'email': usuario.email
-                }
-            )
-
-            return jsonify({
-                'access_token': new_token,
-                'token_type': 'Bearer',
-                'expires_in': 3600
-            }), 200
-
-        except Exception as e:
-            return jsonify({
-                'status': 'error',
-                'message': 'Falha ao renovar token',
-                'code': 500
-            }), 500
-
-    @staticmethod
-    @jwt_required()
-    def obter_dados_usuario():
-        """Obtém os dados do usuário autenticado"""
-        try:
-            current_user = get_jwt_identity()
-            usuario = Usuario.query.get(current_user)
-
-            if not usuario:
-                return jsonify({'message': 'Usuário não encontrado'}), 404
-
-            # Retorna dados do usuário em uma lista (conforme necessário pelo erro)
-            return jsonify([{
-                'id': usuario.id,
-                'usuario': usuario.nickname,
-                'nome': usuario.nome
-            }]), 200
-
-        except Exception as e:
-            return jsonify({
-                'status': 'error',
-                'message': 'Erro ao recuperar dados do usuário',
-                'code': 500
-            }), 500
-
-    @staticmethod
-    @jwt_required()
-    def realizar_logout():
-        """Logout com validação de credenciais"""
-        try:
-            dados = request.get_json()
-
-            # Verifica se os dados de entrada não estão vazios
-            if not dados:
-                return jsonify({'message': 'Corpo da requisição vazio'}), 400
-
-            # Verifica se os campos "usuario" e "senha" estão presentes
-            if 'usuario' not in dados or 'senha' not in dados:
-                return jsonify({'message': 'Campos "usuario" e "senha" são obrigatórios'}), 400
-
-            usuario = dados['usuario']
-            senha = dados['senha']
-
-            # Verifica se os campos têm o tipo correto
-            if not isinstance(usuario, str) or not isinstance(senha, str):
-                return jsonify({'message': 'Campos "usuario" e "senha" devem ser do tipo string'}), 400
-
-            # Verifica os comprimentos mínimos e máximos
-            if len(usuario) < 4 or len(usuario) > 20:
-                return jsonify({'message': 'Usuário deve ter entre 4 e 20 caracteres'}), 400
-
-            if len(senha) < 4 or len(senha) > 100:
-                return jsonify({'message': 'Senha deve ter entre 4 e 100 caracteres'}), 400
-
-            # Verifica se o usuário existe e a senha está correta
-            usuario_obj = Usuario.query.filter_by(usuario=usuario).first()
-
-            if not usuario_obj or not check_password_hash(usuario_obj.senha, senha):
-                return jsonify({
-                    'status': 'error',
-                    'message': 'Usuário ou senha incorretos',
-                    'code': 401
-                }), 401
-
-            # Implementação de logout, pode ser feito via blacklist ou outra técnica
-            response = {
-                'message': 'Logout bem-sucedido'
+        new_token = create_access_token(
+            identity=user.id,
+            additional_claims={
+                'nickname': user.nickname,
+                'nome': user.nome
             }
+        )
 
-            return jsonify(response), 200
+        return {
+            'access_token': new_token
+        }, 200
 
-        except Exception as e:
-            return jsonify({
-                'status': 'error',
-                'message': 'Erro interno no servidor',
-                'code': 500,
-                'details': str(e)
-            }), 500
+    @staticmethod
+    @jwt_required()
+    @handle_errors
+    def obter_dados_usuario():
+        user_id = get_jwt_identity()
+        user = Usuario.query.get(user_id)
+
+        if not user:
+            return {'message': 'Usuário não encontrado'}, 404
+
+        return user.to_dict(), 200
+
+    @staticmethod
+    @jwt_required()
+    @handle_errors
+    def realizar_logout():
+        data = request.get_json(silent=True)
+        
+        if not data:
+            return {'message': 'Corpo da requisição vazio'}, 400
+
+        usuario = data.get('usuario')
+        senha = data.get('senha')
+
+        if not usuario or not senha:
+            return {
+                'message': 'Campos obrigatórios faltando',
+                'required_fields': ['usuario', 'senha']
+            }, 400
+
+        user = Usuario.query.filter_by(nickname=usuario).first()
+
+        if not user or not check_password_hash(user.senha, senha):
+            return {'message': 'Credenciais inválidas'}, 401
+
+        return {'message': 'Logout realizado com sucesso'}, 200
