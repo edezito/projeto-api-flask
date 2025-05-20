@@ -8,10 +8,9 @@ class AlunoService:
     @staticmethod
     def calcular_media(dados):
         """Calcula a média das notas do aluno."""
-        nota_primeiro = dados.get("nota_primeiro_semestre", 0.0)
-        nota_segundo = dados.get("nota_segundo_semestre", 0.0)
+        nota_primeiro = dados.get("nota_primeiro_semestre")
+        nota_segundo = dados.get("nota_segundo_semestre")
         
-        # Calcula a média apenas se as duas notas forem fornecidas
         if nota_primeiro is None or nota_segundo is None:
             return None
             
@@ -22,67 +21,87 @@ class AlunoService:
         """Lista alunos com paginação e ordenação."""
         query = session.query(Aluno)
         
-        # Ordenação
         if hasattr(Aluno, order_by):
             query = query.order_by(getattr(Aluno, order_by))
-            
-        # Paginação
+        
         total = query.count()
         alunos = query.offset((page - 1) * per_page).limit(per_page).all()
         
         return alunos, total
 
     @staticmethod
-    def criar_aluno(session, nome, idade, nota_primeiro_semestre, nota_segundo_semestre, turma_id):
-        """Cria um novo aluno e salva no banco de dados."""
+    def criar_aluno(session, dados):
+        """Cria um novo aluno a partir de um dicionário de dados."""
+        AlunoService.validar_dados(dados)
+
         aluno = Aluno(
-            nome=nome,
-            idade=idade,
-            nota_primeiro_semestre=nota_primeiro_semestre,
-            nota_segundo_semestre=nota_segundo_semestre,
-            turma_id=turma_id
+            nome=dados["nome"],
+            idade=dados["idade"],
+            nota_primeiro_semestre=dados.get("nota_primeiro_semestre"),
+            nota_segundo_semestre=dados.get("nota_segundo_semestre"),
+            turma_id=dados["turma_id"]
         )
-        
-        # Calcula a média após criar o aluno
+
         aluno.calcular_media()
 
-        session.add(aluno)
-        session.commit()  # Comita a transação
-
-        return aluno.to_dict()
+        try:
+            session.add(aluno)
+            session.commit()
+            session.refresh(aluno)
+            return aluno  # Retorna o objeto Aluno em vez do dicionário
+        except SQLAlchemyError as e:
+            session.rollback()
+            raise ValueError(f"Erro ao criar aluno: {str(e)}")
 
     @staticmethod
     def buscar_aluno_por_id(session, id_aluno):
-        """Busca um aluno pelo ID. Levanta uma exceção caso não seja encontrado."""
-        aluno = session.query(Aluno).get(id_aluno)
+        if not isinstance(id_aluno, int) or id_aluno <= 0:
+            raise ValueError("ID do aluno inválido")
+        
+        aluno = session.get(Aluno, id_aluno)
         if not aluno:
-            raise NoResultFound("Aluno não encontrado")
+            raise NoResultFound(f"Aluno com ID {id_aluno} não encontrado")
+        
+        # Verificação adicional
+        if not hasattr(aluno, 'nome') or not hasattr(aluno, 'idade'):
+            raise ValueError("Objeto aluno corrompido")
+        
         return aluno
 
     @staticmethod
-    def atualizar_aluno(session, id_aluno, dados):
-        """Atualiza os dados de um aluno existente no banco de dados."""
-        AlunoService.validar_dados(dados, is_update=True)
-        aluno = AlunoService.buscar_aluno_por_id(session, id_aluno)
+    def atualizar_aluno(dados, aluno_obj):
+        """Atualiza um aluno existente com os novos dados.
         
-        # Atualiza os atributos do aluno
-        for key, value in dados.items():
-            if hasattr(aluno, key) and key != 'id':
-                setattr(aluno, key, value)
-        
-        # Recalcula a média após a atualização das notas
-        aluno.calcular_media()
+        Args:
+            dados: Dicionário com os dados para atualização
+            aluno_obj: Objeto Aluno a ser atualizado
+        """
+        # Verificação do objeto aluno
+        if not hasattr(aluno_obj, 'id') or not isinstance(aluno_obj.id, int):
+            raise ValueError("Objeto aluno inválido")
 
-        session.flush()
-        return aluno
+        # Atualização dos campos
+        campos_permitidos = ['nome', 'idade', 'nota_primeiro_semestre', 
+                            'nota_segundo_semestre', 'turma_id']
+        
+        for campo in campos_permitidos:
+            if campo in dados:
+                setattr(aluno_obj, campo, dados[campo])
+
+        aluno_obj.calcular_media()
+        return aluno_obj
 
     @staticmethod
     def excluir_aluno(session, id_aluno):
         """Remove um aluno do banco de dados."""
         aluno = AlunoService.buscar_aluno_por_id(session, id_aluno)
-        session.delete(aluno)
-        session.flush()
-        return aluno
+        try:
+            session.delete(aluno)
+            session.commit()  # Alterado de flush() para commit()
+            return {"id": aluno.id}  # Retorna dict simples em vez de chamar to_dict()
+        except SQLAlchemyError as e:
+            session.rollback()
+            raise ValueError(f"Erro ao excluir aluno: {str(e)}")
 
     @staticmethod
     def validar_dados(dados, is_update=False):
@@ -90,21 +109,14 @@ class AlunoService:
         if not dados:
             raise ValueError("Dados não fornecidos")
         
-        # Campos obrigatórios para criação de aluno
-        required_fields = ['nome', 'turma_id']
+        required_fields = ['nome', 'idade', 'turma_id']
         if not is_update:
             for field in required_fields:
                 if field not in dados:
                     raise ValueError(f"Campo obrigatório faltando: {field}")
-                    
-        # Não é permitido fornecer o campo 'id' manualmente
+        
         if 'id' in dados:
             raise ValueError("O ID não deve ser fornecido manualmente")
         
-        # Validação de idade
         if 'idade' in dados and (not isinstance(dados['idade'], int) or not 0 <= dados['idade'] <= 120):
             raise ValueError("Idade inválida")
-        
-        # Validação de matrícula
-        if 'matricula' in dados and not isinstance(dados['matricula'], str):
-            raise ValueError("Matrícula deve ser uma string")

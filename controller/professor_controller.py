@@ -63,19 +63,20 @@ class ProfessorController:
     @handle_db_errors
     def criar(self, session):
         dados = request.get_json()
+        
+        if not dados:
+            return self._handle_response(False, "Dados não fornecidos", None, 400)
 
-        # Validação simples
-        campos_obrigatorios = ['nome', 'idade', 'materia']
-        if not all(campo in dados and dados[campo] for campo in campos_obrigatorios):
-            return self._handle_response(False, "Campos obrigatórios faltando: nome, idade, materia", None, 400)
-
-        professor = self.professor_service.criar_professor(session, dados)
-        return self._handle_response(
-            True,
-            "Professor criado com sucesso",
-            {'professor': professor.to_dict()},
-            201
-        )
+        try:
+            professor = self.professor_service.criar_professor(session, dados)
+            return self._handle_response(
+                True,
+                "Professor criado com sucesso",
+                professor.to_dict(),  # Envia o dicionário diretamente
+                201
+            )
+        except ValueError as e:
+            return self._handle_response(False, str(e), None, 400)
 
     @handle_db_errors
     def buscar_por_id(self, session, id_professor):

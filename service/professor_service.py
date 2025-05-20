@@ -16,15 +16,19 @@ class ProfessorService:
 
     @staticmethod
     def criar_professor(session, data):
-        professor = Professor(
-            nome=data.get('nome'),
-            idade=data.get('idade'),
-            materia=data.get('materia'),
-            observacoes=data.get('observacoes')
-        )
-        session.add(professor)
-        session.commit()
-        return professor
+        try:
+            professor = Professor(
+                nome=data['nome'],  # Acessa como obrigatório
+                idade=data['idade'],
+                materia=data['materia'],
+                observacoes=data.get('observacoes')  # Opcional
+            )
+            session.add(professor)
+            session.commit()
+            session.refresh(professor)  # Garante que temos o ID gerado
+            return professor
+        except KeyError as e:
+            raise ValueError(f"Campo obrigatório faltando: {str(e)}")
 
     @staticmethod
     def buscar_professor_por_id(session, id_professor):

@@ -1,3 +1,4 @@
+from model.professor_model import Professor
 from model.turma_model import Turma, TurmaNaoEncontrada
 from sqlalchemy.exc import SQLAlchemyError
 from config import BancoDados
@@ -9,10 +10,10 @@ class TurmaService:
 
     @staticmethod
     def listar_turmas(session, filtros=None):
-        query = session.query(Turma)
+        from sqlalchemy.orm import joinedload
+        
+        query = session.query(Turma).options(joinedload(Turma.professor))
         try:
-            query = session.query(Turma)
-
             if filtros:
                 if 'ativo' in filtros and filtros['ativo'] is not None:
                     query = query.filter(Turma.ativo == filtros['ativo'])
@@ -25,8 +26,7 @@ class TurmaService:
         except Exception as e:
             session.rollback()
             raise e
-        finally:
-            session.close()
+        # Remover o session.close() aqui para evitar problemas com objetos desconectados
 
     @staticmethod
     def buscar_turma_por_id(session, id_turma):
@@ -55,8 +55,16 @@ class TurmaService:
     @staticmethod
     def criar_turma(session, dados_turma):
         try:
-            TurmaService.validar_dados(dados_turma, criacao=True)
+            # Remove campos não mapeados
+            dados_turma = {k: v for k, v in dados_turma.items() 
+                        if k in ['descricao', 'professor_id', 'ativo']}
+            
+            # Verifica se o professor existe
+            professor = session.get(Professor, dados_turma['professor_id'])
+            if not professor:
+                raise ValueError(f"Professor com ID {dados_turma['professor_id']} não encontrado")
 
+            # Cria a turma
             turma = Turma(
                 descricao=dados_turma['descricao'].strip(),
                 professor_id=dados_turma['professor_id'],
@@ -65,15 +73,14 @@ class TurmaService:
 
             session.add(turma)
             session.commit()
+            
+            # Recarrega a turma com relacionamentos
+            session.refresh(turma)
             return turma
-        except ValueError as ve:
+            
+        except Exception as e:
             session.rollback()
-            raise ve
-        except SQLAlchemyError as e:
-            session.rollback()
-            raise Exception(f"Erro ao criar turma: {str(e)}")
-        finally:
-            session.close()
+            raise ValueError(f"Erro ao criar turma: {str(e)}")
 
     @staticmethod
     def atualizar_turma(session, id_turma, dados):

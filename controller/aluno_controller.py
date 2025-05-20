@@ -1,6 +1,7 @@
 from flask import jsonify, request
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm.exc import NoResultFound
+from model.aluno_model import Aluno
 from service.aluno_service import AlunoService
 from model.turma_model import Turma
 from config import BancoDados
@@ -60,43 +61,45 @@ class AlunoController:
             order_by=order_by
         )
 
-        alunos_dict = []
-        for aluno in alunos:
-            turma_info = self._get_turma_info(session, aluno.turma_id)
-            aluno_dict = aluno.to_dict(include_turma=True)
-            aluno_dict['turma'] = turma_info
-            aluno_dict['media'] = self.aluno_service.calcular_media({
-                'nota_primeiro_semestre': aluno.nota_primeiro_semestre,
-                'nota_segundo_semestre': aluno.nota_segundo_semestre
-            })
-            alunos_dict.append(aluno_dict)
+        alunos_dict = [aluno.to_dict(include_turma=True) for aluno in alunos]
+        
+        pagination = {
+            'total': total,
+            'page': page,
+            'per_page': per_page,
+            'total_pages': (total + per_page - 1) // per_page if total > 0 else 0
+        }
 
         return self._handle_response(
             True,
             "Lista de alunos recuperada com sucesso",
             {
                 'alunos': alunos_dict,
-                'pagination': {
-                    'total': total,
-                    'page': page,
-                    'per_page': per_page,
-                    'total_pages': (total + per_page - 1) // per_page
-                }
+                'pagination': pagination
             }
         )
+
 
     @handle_db_errors
     def criar(self, session):
         dados = request.get_json()
+        
+        # Cria o aluno e obtém o objeto Aluno (não o dicionário ainda)
         aluno = self.aluno_service.criar_aluno(session, dados)
-        turma_info = self._get_turma_info(session, aluno.turma_id)
+        
+        # Converte para dicionário incluindo as informações da turma
+        aluno_dict = aluno.to_dict(include_turma=True)
+        
+        # Calcula a média se necessário
+        aluno_dict['media'] = self.aluno_service.calcular_media({
+            'nota_primeiro_semestre': aluno.nota_primeiro_semestre,
+            'nota_segundo_semestre': aluno.nota_segundo_semestre
+        })
+        
         return self._handle_response(
             True,
             "Aluno criado com sucesso",
-            {
-                'aluno': aluno.to_dict(include_turma=True),
-                'turma': turma_info
-            },
+            aluno_dict,
             201
         )
 
@@ -119,18 +122,32 @@ class AlunoController:
     @handle_db_errors
     def atualizar(self, session, id):
         dados = request.get_json()
-        aluno_atualizado = self.aluno_service.atualizar_aluno(session, id, dados)
+        
+        # Busca o aluno
+        aluno = self.aluno_service.buscar_aluno_por_id(session, id)
+        
+        # Atualiza os dados (passando apenas dados e aluno)
+        aluno_atualizado = self.aluno_service.atualizar_aluno(dados, aluno)
+        
+        # Confirma as alterações
+        session.commit()
+        
         return self._handle_response(
             True,
             "Aluno atualizado com sucesso",
-            {'aluno': aluno_atualizado.to_dict()}
+            {
+                "id": aluno_atualizado.id,
+                "nome": aluno_atualizado.nome,
+                "idade": aluno_atualizado.idade,
+                "media": aluno_atualizado.media
+            }
         )
 
-    @handle_db_errors
+    @handle_db_errors   
     def excluir(self, session, id_aluno):
         aluno = self.aluno_service.excluir_aluno(session, id_aluno)
         return self._handle_response(
             True,
             "Aluno removido com sucesso",
-            {'id': aluno.id}
+            aluno  # Já é um dicionário
         )

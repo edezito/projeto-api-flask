@@ -71,12 +71,34 @@ class TurmaController:
     @handle_db_errors
     def criar_turma(self, session):
         """Cria uma nova turma"""
-        dados = request.get_json()
-        if not dados or 'nome' not in dados:
-            return self._handle_response(False, "Dados inválidos para criação da turma.", None, 400)
+        try:
+            dados = request.get_json()
+            if not dados:
+                return {"success": False, "message": "Nenhum dado fornecido"}, 400
+                
+            campos_obrigatorios = ['descricao', 'professor_id']
+            for campo in campos_obrigatorios:
+                if campo not in dados:
+                    return {
+                        "success": False,
+                        "message": f"Campo obrigatório faltando: {campo}"
+                    }, 400
 
-        turma = self.turma_service.criar_turma(session, dados)
-        return self._turma_response(turma, "Turma criada com sucesso", 201)
+            turma = self.turma_service.criar_turma(session, dados)
+            return {
+                "success": True,
+                "message": "Turma criada com sucesso",
+                "data": turma.to_dict()
+            }, 201
+            
+        except ValueError as e:
+            return {"success": False, "message": str(e)}, 400
+        except Exception as e:
+            return {
+                "success": False,
+                "message": "Erro interno ao criar turma",
+                "error": str(e)
+            }, 500
 
     @handle_db_errors
     def buscar_turma_por_id(self, session, id_turma):
