@@ -1,51 +1,88 @@
 from flask_restx import Resource
 from flask import request
-from controller.professor_controller import ProfessorController
-from service.login_requerido import login_requerido
+from config import BancoDados
+from service.professor_service import ProfessorService
 from swagger.namespaces.professor_namespace import professores_namespace, professor_model, success_model, error_model
 
 @professores_namespace.route('/')
 class ListaProfessores(Resource):
-    @professores_namespace.doc(security='Bearer Auth', description='Lista todos os professores cadastrados')
     @professores_namespace.marshal_list_with(professor_model)
-    @professores_namespace.response(200, 'Professores listados com sucesso')
-    @professores_namespace.response(404, 'Nenhum professor encontrado', model=error_model)
-    @login_requerido
     def get(self):
-        return ProfessorController.listar_professores()
+        filters = {
+            'page': request.args.get('page', 1, type=int),
+            'per_page': request.args.get('per_page', 20, type=int),
+            'order_by': request.args.get('order_by', 'nome')
+        }
+        try:
+            with BancoDados.SessionLocal() as session:
+                professores, total = ProfessorService.listar_professores(session, **filters)
+                return {
+                    "success": True,
+                    "message": "Lista de professores recuperada com sucesso",
+                    "data": {
+                        "professores": [p.to_dict() for p in professores],
+                        "total": total
+                    }
+                }, 200
+        except Exception as e:
+            return {"success": False, "message": str(e)}, 500
 
-    @professores_namespace.doc(security='Bearer Auth', description='Cria um novo professor')
-    @professores_namespace.expect(professor_model)
+    @professores_namespace.expect(professor_model, validate=True)
     @professores_namespace.marshal_with(success_model, code=201)
-    @professores_namespace.response(400, 'Dados inválidos', model=error_model)
-    @login_requerido
     def post(self):
-        data = request.get_json()
-        return ProfessorController.criar_professor(data)
+        dados = request.json
+        try:
+            with BancoDados.SessionLocal() as session:
+                professor = ProfessorService.criar_professor(session, dados)
+                return {
+                    "success": True,
+                    "message": "Professor criado com sucesso",
+                    "data": {"professor": professor.to_dict()}
+                }, 201
+        except Exception as e:
+            return {"success": False, "message": str(e)}, 500
+
 
 @professores_namespace.route('/<int:id_professor>')
 @professores_namespace.param('id_professor', 'ID do professor')
 class ProfessorResource(Resource):
-    @professores_namespace.doc(security='Bearer Auth', description='Busca um professor pelo ID')
     @professores_namespace.marshal_with(professor_model)
-    @professores_namespace.response(404, 'Professor não encontrado', model=error_model)
-    @login_requerido
     def get(self, id_professor):
-        return ProfessorController.buscar_professor_por_id(id_professor)
+        try:
+            with BancoDados.SessionLocal() as session:
+                professor = ProfessorService.buscar_professor_por_id(session, id_professor)
+                return {
+                    "success": True,
+                    "message": "Professor encontrado com sucesso",
+                    "data": professor.to_dict()
+                }, 200
+        except Exception as e:
+            return {"success": False, "message": str(e)}, 500
 
-    @professores_namespace.doc(security='Bearer Auth', description='Atualiza os dados de um professor')
-    @professores_namespace.expect(professor_model)
+    @professores_namespace.expect(professor_model, validate=True)
     @professores_namespace.marshal_with(success_model)
-    @professores_namespace.response(404, 'Professor não encontrado', model=error_model)
-    @professores_namespace.response(400, 'Dados inválidos', model=error_model)
-    @login_requerido
     def put(self, id_professor):
-        data = request.get_json()
-        return ProfessorController.atualizar_professor(id_professor, data)
+        dados = request.json
+        try:
+            with BancoDados.SessionLocal() as session:
+                professor_atualizado = ProfessorService.atualizar_professor(session, id_professor, dados)
+                return {
+                    "success": True,
+                    "message": "Professor atualizado com sucesso",
+                    "data": {"professor": professor_atualizado.to_dict()}
+                }, 200
+        except Exception as e:
+            return {"success": False, "message": str(e)}, 500
 
-    @professores_namespace.doc(security='Bearer Auth', description='Exclui um professor')
     @professores_namespace.response(200, 'Professor removido com sucesso', model=success_model)
-    @professores_namespace.response(404, 'Professor não encontrado', model=error_model)
-    @login_requerido
     def delete(self, id_professor):
-        return ProfessorController.excluir_professor(id_professor)
+        try:
+            with BancoDados.SessionLocal() as session:
+                ProfessorService.excluir_professor(session, id_professor)
+                return {
+                    "success": True,
+                    "message": "Professor removido com sucesso",
+                    "data": {"id": id_professor}
+                }, 200
+        except Exception as e:
+            return {"success": False, "message": str(e)}, 500

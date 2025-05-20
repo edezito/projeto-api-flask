@@ -1,4 +1,4 @@
-from flask import jsonify, request, session
+from flask import jsonify, request
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm.exc import NoResultFound
 from service.aluno_service import AlunoService
@@ -17,7 +17,7 @@ class AlunoController:
             'message': message,
             'data': data
         }
-        return response, status_code
+        return jsonify(response), status_code
 
     @staticmethod
     def _get_turma_info(session, turma_id):
@@ -51,6 +51,7 @@ class AlunoController:
                 session.close()
         return wrapper
 
+    @handle_db_errors
     def listar(self, session, page=1, per_page=20, order_by='nome'):
         alunos, total = self.aluno_service.listar_alunos(
             session,
@@ -84,6 +85,7 @@ class AlunoController:
             }
         )
 
+    @handle_db_errors
     def criar(self, session):
         dados = request.get_json()
         aluno = self.aluno_service.criar_aluno(session, dados)
@@ -98,6 +100,7 @@ class AlunoController:
             201
         )
 
+    @handle_db_errors
     def buscar_por_id(self, session, id_aluno):
         aluno = self.aluno_service.buscar_aluno_por_id(session, id_aluno)
         turma_info = self._get_turma_info(session, aluno.turma_id)
@@ -113,23 +116,17 @@ class AlunoController:
             aluno_dict
         )
 
-    def atualizar(self, id):
-        try:
-            dados = request.get_json()
-            session = BancoDados.SessionLocal()
-            aluno_atualizado = self.aluno_service.atualizar_aluno(session, id, dados)
-            session.close()
-            return jsonify({
-                'success': True,
-                'message': 'Aluno atualizado com sucesso',
-                'data': {'aluno': aluno_atualizado.to_dict()}
-            }), 200
-        except Exception as e:
-            return jsonify({
-                'success': False,
-                'message': str(e)
-            }), 400
-    
+    @handle_db_errors
+    def atualizar(self, session, id):
+        dados = request.get_json()
+        aluno_atualizado = self.aluno_service.atualizar_aluno(session, id, dados)
+        return self._handle_response(
+            True,
+            "Aluno atualizado com sucesso",
+            {'aluno': aluno_atualizado.to_dict()}
+        )
+
+    @handle_db_errors
     def excluir(self, session, id_aluno):
         aluno = self.aluno_service.excluir_aluno(session, id_aluno)
         return self._handle_response(

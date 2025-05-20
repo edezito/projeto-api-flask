@@ -7,14 +7,12 @@ from swagger.swagger_config import api, api_blueprint
 
 # Namespaces
 from swagger.namespaces.alunos_namespace import alunos_namespace
-from swagger.namespaces.login_namespace import login_namespace
 from swagger.namespaces.admin_namespaces import admin_namespace
 from swagger.namespaces.professor_namespace import professores_namespace
 from swagger.namespaces.turmas_namespaces import turmas_namespace
 
 # Importar rotas adicionais
 import routes.aluno_routes
-import routes.login_routes
 import routes.professor_routes
 import routes.turma_routes
 
@@ -45,7 +43,6 @@ app.register_blueprint(api_blueprint)
 
 # Namespaces da API
 api.add_namespace(admin_namespace)
-api.add_namespace(login_namespace)
 api.add_namespace(alunos_namespace)
 api.add_namespace(professores_namespace)
 api.add_namespace(turmas_namespace)

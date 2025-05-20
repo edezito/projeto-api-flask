@@ -1,8 +1,4 @@
-from flask_restx import Namespace, fields, Resource
-from flask import request
-from service.login_requerido import login_requerido
-from service.aluno_service import AlunoService
-from config import BancoDados
+from flask_restx import Namespace, fields
 
 # Configuração do Namespace
 alunos_namespace = Namespace('alunos', description='Operações com alunos')

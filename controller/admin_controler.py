@@ -2,7 +2,8 @@ from flask import request, jsonify
 from functools import wraps
 from model import aluno_model, professor_model, turma_model
 from config import BancoDados
-import logging 
+import logging
+
 class SistemaController:
 
     @staticmethod
@@ -23,8 +24,8 @@ class SistemaController:
             try:
                 return func(*args, **kwargs)
             except Exception as e:
-                logging.error(f"Erro ao resetar dados: {str(e)}")  # Log correto usando o logger padrão
-                return SistemaController._handle_response(False, f"Erro ao resetar dados: {str(e)}", None, 500)
+                logging.error(f"Erro: {str(e)}")
+                return SistemaController._handle_response(False, f"Erro ao processar a requisição: {str(e)}", None, 500)
         return wrapper
 
     @staticmethod
@@ -32,12 +33,16 @@ class SistemaController:
     def resetar_dados():
         db = BancoDados.SessionLocal()
         try:
-            # Excluir dados de teste (exemplo)
+            # Exclui os dados das tabelas (ordem importa se há FK)
             db.query(aluno_model.Aluno).delete()
             db.query(turma_model.Turma).delete()
             db.query(professor_model.Professor).delete()
             db.commit()
-            print("Dados resetados com sucesso!")  # Log para garantir que o método está sendo chamado
+            logging.info("Dados resetados com sucesso!")
+            return SistemaController._handle_response(True, "Dados resetados com sucesso.")
         except Exception as e:
             db.rollback()
-            print(f"Erro ao resetar dados: {e}")
+            logging.error(f"Erro ao resetar dados: {e}")
+            return SistemaController._handle_response(False, f"Erro ao resetar dados: {str(e)}", None, 500)
+        finally:
+            db.close()

@@ -1,85 +1,97 @@
-from flask import request, jsonify
-from http import HTTPStatus
-from flask_restx import abort
-from model.turma_model import TurmaNaoEncontrada
+from flask import jsonify, request
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm.exc import NoResultFound
 from service.turma_service import TurmaService
+from config import BancoDados
+from functools import wraps
 
 class TurmaController:
+    def __init__(self, turma_service: TurmaService):
+        self.turma_service = turma_service
+
     @staticmethod
-    def listar_turmas():
-        try:
-            filtros = {
-                'ativo': request.args.get('ativo', type=lambda v: v.lower() == 'true'),
-                'professor_id': request.args.get('professor_id', type=int)
+    def _handle_response(success, message, data=None, status_code=200):
+        response = {
+            'success': success,
+            'message': message,
+            'data': data
+        }
+        return jsonify(response), status_code
+
+    @staticmethod
+    def handle_db_errors(func):
+        @wraps(func)
+        def wrapper(self, *args, **kwargs):
+            session = BancoDados.SessionLocal()
+            try:
+                result = func(self, session, *args, **kwargs)
+                session.commit()
+                return result
+            except ValueError as e:
+                session.rollback()
+                return TurmaController._handle_response(False, str(e), None, 400)
+            except NoResultFound as e:
+                session.rollback()
+                return TurmaController._handle_response(False, str(e), None, 404)
+            except SQLAlchemyError as e:
+                session.rollback()
+                return TurmaController._handle_response(False, f"Erro no banco de dados: {str(e)}", None, 500)
+            except Exception as e:
+                session.rollback()
+                return TurmaController._handle_response(False, f"Erro inesperado: {str(e)}", None, 500)
+            finally:
+                session.close()
+        return wrapper
+
+    @handle_db_errors
+    def listar_turmas(self, session):
+        turmas, total = self.turma_service.listar_turmas(session)
+        turmas_dict = [turma.to_dict() for turma in turmas]
+
+        return self._handle_response(
+            True,
+            "Lista de turmas recuperada com sucesso",
+            {
+                'turmas': turmas_dict,
+                'total': total
             }
-            filtros = {k: v for k, v in filtros.items() if v is not None}
-            
-            turmas = TurmaService.listar_turmas(filtros)
-            return [turma.to_dict() for turma in turmas], HTTPStatus.OK
-        except Exception as e:
-            return {'message': str(e)}, HTTPStatus.INTERNAL_SERVER_ERROR
+        )
 
-    @staticmethod
-    def criar_turma():
-        data = request.get_json()
-        if not data:
-            return {'message': "Dados não fornecidos"}, HTTPStatus.BAD_REQUEST
-        
-        if 'id' in data:
-            return {'message': "O ID não deve ser fornecido manualmente"}, HTTPStatus.BAD_REQUEST
-        
-        try:
-            turma = TurmaService.criar_turma(data)
-            return turma.to_dict(), HTTPStatus.CREATED
-        except Exception as e:
-            return {'message': str(e)}, HTTPStatus.INTERNAL_SERVER_ERROR
+    @handle_db_errors
+    def criar_turma(self, session):
+        dados = request.get_json()
+        turma = self.turma_service.criar_turma(session, dados)
+        return self._handle_response(
+            True,
+            "Turma criada com sucesso",
+            turma.to_dict(),
+            201
+        )
 
-    @staticmethod
-    def buscar_por_id_turma(id_turma):
-        try:
-            turma = TurmaService.buscar_turma_por_id(id_turma)
-            return turma.to_dict(), HTTPStatus.OK
-        except TurmaNaoEncontrada as e:
-            return {'message': str(e)}, HTTPStatus.NOT_FOUND
-        except Exception as e:
-            return {'message': str(e)}, HTTPStatus.INTERNAL_SERVER_ERROR
+    @handle_db_errors
+    def buscar_turma_por_id(self, session, id_turma):
+        turma = self.turma_service.buscar_turma_por_id(session, id_turma)
+        return self._handle_response(
+            True,
+            "Turma encontrada com sucesso",
+            turma.to_dict()
+        )
 
-    @staticmethod
-    def atualizar_turma(id_turma):
-        data = request.get_json()
-        if not data:
-            return {'message': "Dados não fornecidos"}, HTTPStatus.BAD_REQUEST
-        
-        try:
-            turma = TurmaService.atualizar_turma(id_turma, data)
-            return turma.to_dict(), HTTPStatus.OK
-        except TurmaNaoEncontrada as e:
-            return {'message': str(e)}, HTTPStatus.NOT_FOUND
-        except Exception as e:
-            return {'message': str(e)}, HTTPStatus.INTERNAL_SERVER_ERROR
+    @handle_db_errors
+    def atualizar_turma(self, session, id_turma):
+        dados = request.get_json()
+        turma_atualizada = self.turma_service.atualizar_turma(session, id_turma, dados)
+        return self._handle_response(
+            True,
+            "Turma atualizada com sucesso",
+            turma_atualizada.to_dict()
+        )
 
-    @staticmethod
-    def desativar_turma(id_turma):
-        try:
-            turma = TurmaService.desativar_turma(id_turma)
-            return {
-                'mensagem': 'Turma desativada com sucesso',
-                'turma_id': turma.id
-            }, HTTPStatus.OK
-        except TurmaNaoEncontrada:
-            abort(HTTPStatus.NOT_FOUND, message=f"Turma com ID {id_turma} não encontrada")
-        except Exception as e:
-            abort(HTTPStatus.INTERNAL_SERVER_ERROR, message=f"Erro ao desativar turma: {str(e)}")
-
-    @staticmethod
-    def excluir_turma(id_turma):
-        try:
-            TurmaService.excluir_turma(id_turma)
-            return {
-                'mensagem': 'Turma excluída permanentemente',
-                'turma_id': id_turma
-            }, HTTPStatus.OK
-        except TurmaNaoEncontrada:
-            abort(HTTPStatus.NOT_FOUND, message=f"Turma com ID {id_turma} não encontrada")
-        except Exception as e:
-            abort(HTTPStatus.INTERNAL_SERVER_ERROR, message=f"Erro ao excluir turma: {str(e)}")
+    @handle_db_errors
+    def excluir_turma(self, session, id_turma):
+        turma = self.turma_service.excluir_turma(session, id_turma)
+        return self._handle_response(
+            True,
+            "Turma removida com sucesso",
+            {'id': turma.id}
+        )

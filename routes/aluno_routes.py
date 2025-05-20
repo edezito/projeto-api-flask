@@ -2,15 +2,11 @@ from flask_restx import Resource
 from flask import request
 from config import BancoDados
 from service.aluno_service import AlunoService
-from service.login_requerido import login_requerido
 from swagger.namespaces.alunos_namespace import alunos_namespace, aluno_model
 
 @alunos_namespace.route('/')
 class AlunoListResource(Resource):
-    @alunos_namespace.doc(security='Bearer Auth')
-    @login_requerido
     def get(self):
-        """Lista todos os alunos"""
         filters = {
             'page': request.args.get('page', 1, type=int),
             'per_page': request.args.get('per_page', 20, type=int),
@@ -28,9 +24,7 @@ class AlunoListResource(Resource):
             }, 200
 
     @alunos_namespace.expect(aluno_model, validate=True)
-    @login_requerido
     def post(self):
-        """Cria um novo aluno"""
         dados = request.json
         try:
             with BancoDados.SessionLocal() as session:
@@ -47,9 +41,7 @@ class AlunoListResource(Resource):
 @alunos_namespace.route('/<int:id>')
 @alunos_namespace.param('id', 'ID do aluno')
 class AlunoResource(Resource):
-    @login_requerido
     def get(self, id):
-        """Busca um aluno pelo ID"""
         try:
             with BancoDados.SessionLocal() as session:
                 aluno = AlunoService.buscar_aluno_por_id(session, id)
@@ -62,9 +54,7 @@ class AlunoResource(Resource):
             return {"success": False, "message": str(e)}, 500
 
     @alunos_namespace.expect(aluno_model, validate=True)
-    @login_requerido
     def put(self, id):
-        """Atualiza um aluno existente"""
         dados = request.json
         try:
             with BancoDados.SessionLocal() as session:
@@ -77,9 +67,7 @@ class AlunoResource(Resource):
         except Exception as e:
             return {"success": False, "message": str(e)}, 500
 
-    @login_requerido
     def delete(self, id):
-        """Exclui um aluno pelo ID"""
         try:
             with BancoDados.SessionLocal() as session:
                 AlunoService.excluir_aluno(session, id)
