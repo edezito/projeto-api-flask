@@ -17,11 +17,11 @@ class Professor(Base):
 
     def to_dict(self):
         return {
-            "id": self.id,
-            "nome": self.nome,
-            "idade": self.idade,
-            "materia": self.materia,
-            "observacoes": self.observacoes
+            "id": self.id or 0,
+            "nome": self.nome or "",
+            "idade": self.idade or 0,
+            "materia": self.materia or "",
+            "observacoes": self.observacoes or ""
         }
 
     def __repr__(self):

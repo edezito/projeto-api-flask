@@ -12,7 +12,7 @@ professor_model = professores_namespace.model('Professor', {
     'id': fields.Integer(readOnly=True, description='ID do professor'),
     'nome': fields.String(required=True, description='Nome do professor'),
     'idade': fields.Integer(required=True, description='Idade do professor'),
-    'disciplina': fields.String(required=True, description='Disciplina que o professor ministra'),
+    'materia': fields.String(required=True, description='Materia que o professor ministra'),
     'observacoes': fields.String(description='Observações adicionais')
 })
 

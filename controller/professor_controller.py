@@ -1,73 +1,109 @@
-from service.professor_service import ProfessorService
-from flask_restx import marshal
+from flask import request, jsonify
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm.exc import NoResultFound
-from swagger.namespaces.professor_namespace import professor_model
+from service.professor_service import ProfessorService
+from config import BancoDados
 from functools import wraps
 
-def handle_exceptions(func):
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        try:
-            return func(*args, **kwargs)
-        except NoResultFound:
-            return {'error': 'Professor não encontrado'}, 404
-        except Exception as e:
-            if func.__name__ in ('criar_professor', 'atualizar_professor'):
-                return {'error': str(e)}, 400
-            return {'error': str(e)}, 500
-    return wrapper
-
 class ProfessorController:
+    def __init__(self, professor_service: ProfessorService = None):
+        self.professor_service = professor_service or ProfessorService()
 
     @staticmethod
-    @handle_exceptions
-    def listar_professores():
-        """Lista todos os professores cadastrados"""
-        professores, total = ProfessorService.listar_professores()
-        if not professores:
-            return {'message': 'Nenhum professor encontrado'}, 404
-        
-        return {
-            'message': 'Professores listados com sucesso',
-            'data': [marshal(p, professor_model) for p in professores],
-            'total': total
-        }, 200
+    def _handle_response(success, message, data=None, status_code=200):
+        response = {
+            'success': success,
+            'message': message,
+            'data': data
+        }
+        return jsonify(response), status_code
 
     @staticmethod
-    @handle_exceptions
-    def criar_professor(data):
-        """Cria um novo professor"""
-        professor = ProfessorService.criar_professor(data)
-        return {
-            'message': 'Professor criado com sucesso',
-            'data': marshal(professor.to_dict(), professor_model)
-        }, 201
+    def handle_db_errors(func):
+        @wraps(func)
+        def wrapper(self, *args, **kwargs):
+            session = BancoDados.get_session()
+            try:
+                result = func(self, session, *args, **kwargs)
+                session.commit()
+                return result
+            except ValueError as e:
+                session.rollback()
+                return ProfessorController._handle_response(False, str(e), None, 400)
+            except NoResultFound as e:
+                session.rollback()
+                return ProfessorController._handle_response(False, str(e), None, 404)
+            except SQLAlchemyError as e:
+                session.rollback()
+                return ProfessorController._handle_response(False, f"Erro no banco de dados: {str(e)}", None, 500)
+            except Exception as e:
+                session.rollback()
+                return ProfessorController._handle_response(False, f"Erro inesperado: {str(e)}", None, 500)
+            finally:
+                session.close()
+        return wrapper
 
-    @staticmethod
-    @handle_exceptions
-    def buscar_professor_por_id(id_professor):
-        """Busca um professor pelo ID"""
-        professor = ProfessorService.buscar_professor_por_id(id_professor)
-        return {
-            'message': 'Professor encontrado com sucesso',
-            'data': marshal(professor.to_dict(), professor_model)
-        }, 200
+    @handle_db_errors
+    def listar(self, session):
+        filters = {
+            'page': request.args.get('page', 1, type=int),
+            'per_page': request.args.get('per_page', 20, type=int),
+            'order_by': request.args.get('order_by', 'nome')
+        }
+        professores, total = self.professor_service.listar_professores(session, **filters)
+        return self._handle_response(
+            True,
+            "Lista de professores recuperada com sucesso",
+            {
+                'professores': [prof.to_dict() for prof in professores],
+                'total': total
+            }
+        )
 
-    @staticmethod
-    @handle_exceptions
-    def atualizar_professor(id_professor, data):
-        """Atualiza os dados de um professor"""
-        professor = ProfessorService.atualizar_professor(id_professor, data)
-        return {
-            'message': 'Professor atualizado com sucesso',
-            'data': marshal(professor.to_dict(), professor_model)
-        }, 200
+    @handle_db_errors
+    def criar(self, session):
+        dados = request.get_json()
 
-    @staticmethod
-    @handle_exceptions
-    def excluir_professor(id_professor):
-        """Exclui um professor do sistema"""
-        success = ProfessorService.excluir_professor(id_professor)
-        if success:
-            return {'message': 'Professor removido com sucesso'}, 200
-        return {'error': 'Falha ao remover professor'}, 500
+        # Validação simples
+        campos_obrigatorios = ['nome', 'idade', 'materia']
+        if not all(campo in dados and dados[campo] for campo in campos_obrigatorios):
+            return self._handle_response(False, "Campos obrigatórios faltando: nome, idade, materia", None, 400)
+
+        professor = self.professor_service.criar_professor(session, dados)
+        return self._handle_response(
+            True,
+            "Professor criado com sucesso",
+            {'professor': professor.to_dict()},
+            201
+        )
+
+    @handle_db_errors
+    def buscar_por_id(self, session, id_professor):
+        professor = self.professor_service.buscar_professor_por_id(session, id_professor)
+        return self._handle_response(
+            True,
+            "Professor encontrado com sucesso",
+            {'professor': professor.to_dict()}
+        )
+
+    @handle_db_errors
+    def atualizar(self, session, id_professor):
+        dados = request.get_json()
+        if not dados:
+            return self._handle_response(False, "Dados para atualização não fornecidos", None, 400)
+
+        professor = self.professor_service.atualizar_professor(session, id_professor, dados)
+        return self._handle_response(
+            True,
+            "Professor atualizado com sucesso",
+            {'professor': professor.to_dict()}
+        )
+
+    @handle_db_errors
+    def excluir(self, session, id_professor):
+        professor = self.professor_service.excluir_professor(session, id_professor)
+        return self._handle_response(
+            True,
+            "Professor removido com sucesso",
+            {'id': professor.id}
+        )

@@ -26,18 +26,27 @@ class Turma(Base):
         self.ativo = ativo
 
     def to_dict(self):
-        """Método para converter o objeto Turma em um dicionário"""
+        """Método para converter o objeto Turma em um dicionário, com tratamento seguro."""
+        try:
+            professor_dict = self.professor.to_dict() if self.professor else None
+        except Exception:
+            professor_dict = None  # Garante que não quebre caso o relacionamento não esteja carregado
+        
+        try:
+            quantidade_alunos = len(self.alunos) if self.alunos else 0
+        except Exception:
+            quantidade_alunos = 0  # Previne erro caso self.alunos não esteja acessível
+
         return {
             "id": self.id,
             "descricao": self.descricao,
             "professor_id": self.professor_id,
             "ativo": self.ativo,
-            "professor": self.professor.to_dict() if self.professor else None,  # Evita erro caso professor seja None
-            "quantidade_alunos": len(self.alunos) if self.alunos else 0  # Conta a quantidade de alunos
+            "professor": professor_dict,
+            "quantidade_alunos": quantidade_alunos
         }
 
     def __repr__(self):
-        """Representação da classe para facilitar a leitura"""
         return f"<Turma(id={self.id}, descricao='{self.descricao}', ativo={self.ativo})>"
 
 class TurmaNaoEncontrada(Exception):

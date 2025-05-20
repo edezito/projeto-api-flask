@@ -1,14 +1,14 @@
-from flask import request, jsonify
-from functools import wraps
+from flask import jsonify
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm.exc import NoResultFound
 from model import aluno_model, professor_model, turma_model
 from config import BancoDados
-import logging
+from functools import wraps
 
 class SistemaController:
 
     @staticmethod
     def _handle_response(success, message, data=None, status_code=200):
-        """Padroniza respostas da API"""
         response = {
             'success': success,
             'message': message,
@@ -17,32 +17,33 @@ class SistemaController:
         return jsonify(response), status_code
 
     @staticmethod
-    def handle_errors(func):
-        """Tratamento centralizado de erros"""
+    def handle_db_errors(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
+            session = BancoDados.get_session()
             try:
-                return func(*args, **kwargs)
+                result = func(session, *args, **kwargs)
+                session.commit()
+                return result
+            except ValueError as e:
+                session.rollback()
+                return SistemaController._handle_response(False, str(e), None, 400)
+            except NoResultFound as e:
+                session.rollback()
+                return SistemaController._handle_response(False, str(e), None, 404)
+            except SQLAlchemyError as e:
+                session.rollback()
+                return SistemaController._handle_response(False, f"Erro no banco de dados: {str(e)}", None, 500)
             except Exception as e:
-                logging.error(f"Erro: {str(e)}")
-                return SistemaController._handle_response(False, f"Erro ao processar a requisição: {str(e)}", None, 500)
+                session.rollback()
+                return SistemaController._handle_response(False, f"Erro inesperado: {str(e)}", None, 500)
+            finally:
+                session.close()
         return wrapper
 
-    @staticmethod
-    @handle_errors
-    def resetar_dados():
-        db = BancoDados.SessionLocal()
-        try:
-            # Exclui os dados das tabelas (ordem importa se há FK)
-            db.query(aluno_model.Aluno).delete()
-            db.query(turma_model.Turma).delete()
-            db.query(professor_model.Professor).delete()
-            db.commit()
-            logging.info("Dados resetados com sucesso!")
-            return SistemaController._handle_response(True, "Dados resetados com sucesso.")
-        except Exception as e:
-            db.rollback()
-            logging.error(f"Erro ao resetar dados: {e}")
-            return SistemaController._handle_response(False, f"Erro ao resetar dados: {str(e)}", None, 500)
-        finally:
-            db.close()
+    @handle_db_errors
+    def resetar_dados(self, session):
+        session.query(aluno_model.Aluno).delete()
+        session.query(turma_model.Turma).delete()
+        session.query(professor_model.Professor).delete()
+        return self._handle_response(True, "Dados resetados com sucesso.")

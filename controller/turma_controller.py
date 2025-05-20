@@ -6,11 +6,12 @@ from config import BancoDados
 from functools import wraps
 
 class TurmaController:
-    def __init__(self, turma_service: TurmaService):
-        self.turma_service = turma_service
+    def __init__(self, turma_service: TurmaService = None):
+        self.turma_service = turma_service or TurmaService()
 
     @staticmethod
     def _handle_response(success, message, data=None, status_code=200):
+        """Método auxiliar para formatar respostas consistentes"""
         response = {
             'success': success,
             'message': message,
@@ -18,11 +19,16 @@ class TurmaController:
         }
         return jsonify(response), status_code
 
+    def _turma_response(self, turma, mensagem, status_code=200):
+        """Formata a resposta com uma turma"""
+        return self._handle_response(True, mensagem, turma.to_dict(), status_code)
+
     @staticmethod
     def handle_db_errors(func):
+        """Decorator para tratamento centralizado de erros de banco de dados"""
         @wraps(func)
         def wrapper(self, *args, **kwargs):
-            session = BancoDados.SessionLocal()
+            session = BancoDados.get_session()
             try:
                 result = func(self, session, *args, **kwargs)
                 session.commit()
@@ -30,65 +36,65 @@ class TurmaController:
             except ValueError as e:
                 session.rollback()
                 return TurmaController._handle_response(False, str(e), None, 400)
-            except NoResultFound as e:
+            except NoResultFound:
                 session.rollback()
-                return TurmaController._handle_response(False, str(e), None, 404)
+                return TurmaController._handle_response(False, "Registro não encontrado.", None, 404)
             except SQLAlchemyError as e:
                 session.rollback()
-                return TurmaController._handle_response(False, f"Erro no banco de dados: {str(e)}", None, 500)
+                return TurmaController._handle_response(False, "Erro ao acessar o banco de dados.", None, 500)
             except Exception as e:
                 session.rollback()
-                return TurmaController._handle_response(False, f"Erro inesperado: {str(e)}", None, 500)
+                return TurmaController._handle_response(False, "Erro inesperado ao processar a solicitação.", None, 500)
             finally:
                 session.close()
         return wrapper
 
     @handle_db_errors
     def listar_turmas(self, session):
-        turmas, total = self.turma_service.listar_turmas(session)
-        turmas_dict = [turma.to_dict() for turma in turmas]
+        """Lista todas as turmas com suporte a filtros"""
+        filtros = {
+            'ativo': request.args.get('ativo', type=lambda x: x.lower() == 'true'),
+            'professor_id': request.args.get('professor_id', type=int)
+        }
+        filtros = {k: v for k, v in filtros.items() if v is not None}
 
+        turmas, total = self.turma_service.listar_turmas(session, filtros)
         return self._handle_response(
             True,
             "Lista de turmas recuperada com sucesso",
             {
-                'turmas': turmas_dict,
+                'turmas': [turma.to_dict() for turma in turmas],
                 'total': total
             }
         )
 
     @handle_db_errors
     def criar_turma(self, session):
+        """Cria uma nova turma"""
         dados = request.get_json()
+        if not dados or 'nome' not in dados:
+            return self._handle_response(False, "Dados inválidos para criação da turma.", None, 400)
+
         turma = self.turma_service.criar_turma(session, dados)
-        return self._handle_response(
-            True,
-            "Turma criada com sucesso",
-            turma.to_dict(),
-            201
-        )
+        return self._turma_response(turma, "Turma criada com sucesso", 201)
 
     @handle_db_errors
     def buscar_turma_por_id(self, session, id_turma):
         turma = self.turma_service.buscar_turma_por_id(session, id_turma)
-        return self._handle_response(
-            True,
-            "Turma encontrada com sucesso",
-            turma.to_dict()
-        )
+        return self._turma_response(turma, "Turma encontrada com sucesso")
 
     @handle_db_errors
     def atualizar_turma(self, session, id_turma):
         dados = request.get_json()
+        if not dados:
+            return self._handle_response(False, "Dados inválidos para atualização da turma.", None, 400)
+
         turma_atualizada = self.turma_service.atualizar_turma(session, id_turma, dados)
-        return self._handle_response(
-            True,
-            "Turma atualizada com sucesso",
-            turma_atualizada.to_dict()
-        )
+        return self._turma_response(turma_atualizada, "Turma atualizada com sucesso")
 
     @handle_db_errors
     def excluir_turma(self, session, id_turma):
+        """Remove uma turma do sistema"""
         turma = self.turma_service.excluir_turma(session, id_turma)
         return self._handle_response(
             True,
