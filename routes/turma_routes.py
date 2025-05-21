@@ -86,14 +86,6 @@ class ListaTurmas(Resource):
         """Cria uma nova turma"""
         return turma_controller.criar_turma()
 
-    @turmas_namespace.expect(turma_input_model)
-    @turmas_namespace.response(201, 'Turma criada', turma_model)
-    @turmas_namespace.response(400, 'Dados inválidos', error_model)
-    @turmas_namespace.response(404, 'Professor não encontrado', error_model)
-    @turmas_namespace.response(500, 'Erro interno', error_model)
-    def post(self):
-        """Cria uma nova turma"""
-        return turma_controller.criar_turma()
 
 @turmas_namespace.route('/<int:id_turma>')
 @turmas_namespace.param('id_turma', 'ID da turma', _in='path', required=True)

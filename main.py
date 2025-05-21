@@ -10,6 +10,7 @@ from swagger.namespaces.alunos_namespace import alunos_namespace
 from swagger.namespaces.admin_namespaces import admin_namespace
 from swagger.namespaces.professor_namespace import professores_namespace
 from swagger.namespaces.turmas_namespaces import turmas_namespace
+from routes.turma_routes import turmas_namespace
 
 # Importar rotas adicionais
 import routes.aluno_routes
