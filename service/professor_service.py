@@ -32,9 +32,10 @@ class ProfessorService:
 
     @staticmethod
     def buscar_professor_por_id(session, id_professor):
-        professor = session.get(Professor, id_professor)
+        """Busca um professor pelo ID com relacionamentos carregados"""
+        professor = session.query(Professor).get(id_professor)
         if not professor:
-            raise NoResultFound("Professor não encontrado")
+            raise NoResultFound(f"Professor com ID {id_professor} não encontrado")
         return professor
 
     @staticmethod

@@ -50,16 +50,21 @@ class Turma(Base):
 
     def to_dict(self):
         """Converte o objeto Turma em um dicionário de forma segura"""
-        # Verifica se os relacionamentos estão carregados
-        professor_loaded = attributes.instance_state(self).loaded_attrs.get('professor', None)
-        alunos_loaded = attributes.instance_state(self).loaded_attrs.get('alunos', None)
-
+        from sqlalchemy import inspect
+        
+        # Usa o inspector do SQLAlchemy para verificar os relacionamentos carregados
+        insp = inspect(self)
+        
+        # Verifica se os relacionamentos estão carregados de forma mais robusta
+        professor_loaded = 'professor' in insp.unloaded
+        alunos_loaded = 'alunos' in insp.unloaded
+        
         professor_dict = None
-        if professor_loaded:
+        if not professor_loaded and hasattr(self, 'professor'):
             professor_dict = self.professor.to_dict() if self.professor else None
         
         quantidade_alunos = 0
-        if alunos_loaded:
+        if not alunos_loaded and hasattr(self, 'alunos'):
             if self.alunos and hasattr(self.alunos, 'count'):
                 quantidade_alunos = self.alunos.count()
             elif self.alunos:

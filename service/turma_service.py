@@ -1,143 +1,127 @@
 from model.professor_model import Professor
 from model.turma_model import Turma, TurmaNaoEncontrada
 from sqlalchemy.exc import SQLAlchemyError
-from config import BancoDados
-
-Session = BancoDados.SessionLocal
+from sqlalchemy.orm import joinedload
 
 class TurmaService:
     """Serviço para operações relacionadas a turmas"""
+    
+    def __init__(self, session=None):
+        from config import BancoDados
+        self.session = session or BancoDados.SessionLocal()
 
-    @staticmethod
-    def listar_turmas(session, filtros=None):
-        from sqlalchemy.orm import joinedload
+    def __del__(self):
+        if hasattr(self, 'session'):
+            self.session.close()
+
+    def listar_turmas(self, filtros=None):
+        """Lista turmas com filtros opcionais"""
+        query = self.session.query(Turma).options(joinedload(Turma.professor))
         
-        query = session.query(Turma).options(joinedload(Turma.professor))
-        try:
-            if filtros:
-                if 'ativo' in filtros and filtros['ativo'] is not None:
-                    query = query.filter(Turma.ativo == filtros['ativo'])
-                if 'professor_id' in filtros and filtros['professor_id'] is not None:
-                    query = query.filter(Turma.professor_id == filtros['professor_id'])
+        if filtros:
+            if 'ativo' in filtros and filtros['ativo'] is not None:
+                query = query.filter(Turma.ativo == filtros['ativo'])
+            if 'professor_id' in filtros and filtros['professor_id'] is not None:
+                query = query.filter(Turma.professor_id == filtros['professor_id'])
 
-            total = query.count()
-            turmas = query.all()
-            return turmas, total
-        except Exception as e:
-            session.rollback()
-            raise e
-        # Remover o session.close() aqui para evitar problemas com objetos desconectados
+        total = query.count()
+        turmas = query.all()
+        return turmas, total
 
-    @staticmethod
-    def buscar_turma_por_id(session, id_turma):
-        turma = session.query(Turma).get(id_turma)
+    def buscar_turma_por_id(self, id_turma):
+        """Busca uma turma pelo ID com relacionamentos carregados"""
+        turma = self.session.query(Turma)\
+                .options(joinedload(Turma.professor))\
+                .get(id_turma)
         if not turma:
-            raise TurmaNaoEncontrada(f"Turma com ID {id_turma} não encontrada")
+            raise TurmaNaoEncontrada(id_turma)
         return turma
-
-    @staticmethod
-    def validar_dados(dados, criacao=True):
+    
+    def validar_dados(self, dados, criacao=True):
+        """Valida os dados da turma"""
         campos_obrigatorios = ['descricao', 'professor_id'] if criacao else []
 
         for campo in campos_obrigatorios:
             if campo not in dados:
                 raise ValueError(f"Campo obrigatório faltando: {campo}")
 
-        if 'descricao' in dados and (not isinstance(dados['descricao'], str) or len(dados['descricao'].strip()) < 3):
-            raise ValueError("Descrição deve ter pelo menos 3 caracteres")
+        if 'descricao' in dados:
+            descricao = dados['descricao'].strip()
+            if not isinstance(descricao, str) or len(descricao) < 3:
+                raise ValueError("Descrição deve ter pelo menos 3 caracteres")
+            dados['descricao'] = descricao  # Atualiza com valor sanitizado
 
-        if 'professor_id' in dados and (not isinstance(dados['professor_id'], int) or dados['professor_id'] <= 0):
-            raise ValueError("ID do professor deve ser um número positivo")
+        if 'professor_id' in dados:
+            if not isinstance(dados['professor_id'], int) or dados['professor_id'] <= 0:
+                raise ValueError("ID do professor deve ser um número positivo")
 
         if 'ativo' in dados and not isinstance(dados['ativo'], bool):
             raise ValueError("Status 'ativo' deve ser True ou False")
 
-    @staticmethod
-    def criar_turma(session, dados_turma):
-        try:
-            # Remove campos não mapeados
-            dados_turma = {k: v for k, v in dados_turma.items() 
-                        if k in ['descricao', 'professor_id', 'ativo']}
-            
-            # Verifica se o professor existe
-            professor = session.get(Professor, dados_turma['professor_id'])
-            if not professor:
-                raise ValueError(f"Professor com ID {dados_turma['professor_id']} não encontrado")
+    def criar_turma(self, dados_turma):
+        """Cria uma nova turma"""
+        self.validar_dados(dados_turma)
+        
+        # Remove campos não mapeados
+        dados_turma = {
+            k: v for k, v in dados_turma.items() 
+            if k in ['descricao', 'professor_id', 'ativo']
+        }
+        
+        # Verifica se o professor existe
+        professor = self.session.get(Professor, dados_turma['professor_id'])
+        if not professor:
+            raise ValueError(f"Professor com ID {dados_turma['professor_id']} não encontrado")
 
-            # Cria a turma
-            turma = Turma(
-                descricao=dados_turma['descricao'].strip(),
-                professor_id=dados_turma['professor_id'],
-                ativo=dados_turma.get('ativo', True)
-            )
+        # Cria a turma
+        turma = Turma(
+            descricao=dados_turma['descricao'],
+            professor_id=dados_turma['professor_id'],
+            ativo=dados_turma.get('ativo', True)
+        )
 
-            session.add(turma)
-            session.commit()
-            
-            # Recarrega a turma com relacionamentos
-            session.refresh(turma)
-            return turma
-            
-        except Exception as e:
-            session.rollback()
-            raise ValueError(f"Erro ao criar turma: {str(e)}")
+        self.session.add(turma)
+        self.session.commit()
+        self.session.refresh(turma)
+        return turma
+    
+    def atualizar_turma(self, id_turma, dados):
+        """Atualiza uma turma existente"""
+        self.validar_dados(dados, criacao=False)
 
-    @staticmethod
-    def atualizar_turma(session, id_turma, dados):
-        TurmaService.validar_dados(dados, criacao=False)  # validação parcial para atualização
+        turma = self.buscar_turma_por_id(id_turma)
 
-        turma = session.query(Turma).get(id_turma)
-        if not turma:
-            raise TurmaNaoEncontrada(f"Turma com ID {id_turma} não encontrada")
-
-        # Atualizar somente os campos que vieram no request
+        # Atualiza somente os campos fornecidos
         if 'descricao' in dados:
             turma.descricao = dados['descricao']
         if 'professor_id' in dados:
+            # Verifica se o novo professor existe
+            professor = self.session.get(Professor, dados['professor_id'])
+            if not professor:
+                raise ValueError(f"Professor com ID {dados['professor_id']} não encontrado")
             turma.professor_id = dados['professor_id']
         if 'ativo' in dados:
             turma.ativo = dados['ativo']
 
-        session.add(turma)
-        # Commit é feito no decorator do controller
+        self.session.add(turma)
+        self.session.commit()
         return turma
 
-    @staticmethod
-    def desativar_turma(id_turma):
-        session = Session()
-        try:
-            turma = session.query(Turma).get(id_turma)
-            if not turma:
-                raise TurmaNaoEncontrada(f"Turma com ID {id_turma} não encontrada")
+    def atualizar_status_turma(self, id_turma, ativo):
+        """Atualiza o status ativo/inativo da turma"""
+        turma = self.buscar_turma_por_id(id_turma)
+        turma.ativo = ativo
+        self.session.add(turma)
+        self.session.commit()
+        return turma
 
-            turma.ativo = False
-            session.commit()
-            return turma
-        except TurmaNaoEncontrada as e:
-            session.rollback()
-            raise e
-        except SQLAlchemyError as e:
-            session.rollback()
-            raise Exception(f"Erro ao desativar turma: {str(e)}")
-        finally:
-            session.close()
+    def excluir_turma(self, id_turma):
+        """Exclui uma turma"""
+        turma = self.buscar_turma_por_id(id_turma)
 
-    @staticmethod
-    def excluir_turma(id_turma):
-        session = Session()
-        try:
-            turma = session.query(Turma).get(id_turma)
-            if not turma:
-                raise TurmaNaoEncontrada(f"Turma com ID {id_turma} não encontrada")
+        # Verifica se há alunos vinculados
+        if turma.alunos.count() > 0:
+            raise ValueError("Não é possível excluir turma com alunos vinculados")
 
-            session.delete(turma)
-            session.commit()
-            return True
-        except TurmaNaoEncontrada as e:
-            session.rollback()
-            raise e
-        except SQLAlchemyError as e:
-            session.rollback()
-            raise Exception(f"Erro ao excluir turma: {str(e)}")
-        finally:
-            session.close()
+        self.session.delete(turma)
+        self.session.commit()

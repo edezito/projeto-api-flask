@@ -44,39 +44,18 @@ class ProfessorController:
         return wrapper
 
     @handle_db_errors
-    def listar(self, session):
-        filters = {
-            'page': request.args.get('page', 1, type=int),
-            'per_page': request.args.get('per_page', 20, type=int),
-            'order_by': request.args.get('order_by', 'nome')
-        }
-        professores, total = self.professor_service.listar_professores(session, **filters)
-        return self._handle_response(
-            True,
-            "Lista de professores recuperada com sucesso",
-            {
-                'professores': [prof.to_dict() for prof in professores],
-                'total': total
-            }
-        )
-
-    @handle_db_errors
     def criar(self, session):
         dados = request.get_json()
-        
         if not dados:
             return self._handle_response(False, "Dados não fornecidos", None, 400)
 
-        try:
-            professor = self.professor_service.criar_professor(session, dados)
-            return self._handle_response(
-                True,
-                "Professor criado com sucesso",
-                professor.to_dict(),  # Envia o dicionário diretamente
-                201
-            )
-        except ValueError as e:
-            return self._handle_response(False, str(e), None, 400)
+        professor = self.professor_service.criar_professor(session, dados)
+        return self._handle_response(
+            True,
+            "Professor criado com sucesso",
+            professor.to_dict(),
+            201
+        )
 
     @handle_db_errors
     def buscar_por_id(self, session, id_professor):

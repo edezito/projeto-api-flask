@@ -7,45 +7,27 @@ from swagger.namespaces.turmas_namespaces import turmas_namespace
 turma_service = TurmaService()
 turma_controller = TurmaController(turma_service)
 
-# Modelo de Professor para aninhamento
+# Modelos
 professor_model = turmas_namespace.model('Professor', {
     'id': fields.Integer,
     'nome': fields.String
 })
 
-# Modelo completo de Turma para resposta
 turma_model = turmas_namespace.model('Turma', {
-    'id': fields.Integer(readOnly=True, description='ID único da turma'),
-    'descricao': fields.String(required=True, description='Nome/descrição da turma'),
-    'professor_id': fields.Integer(required=True, description='ID do professor responsável'),
-    'ativo': fields.Boolean(default=True, description='Status da turma (ativo/inativo)'),
-    'quantidade_alunos': fields.Integer(
-        readonly=True,
-        description='Número de alunos na turma (calculado automaticamente)'
-    ),
-    'professor': fields.Nested(professor_model, description='Professor responsável')
+    'id': fields.Integer(readOnly=True),
+    'descricao': fields.String(required=True),
+    'professor_id': fields.Integer(required=True),
+    'ativo': fields.Boolean(default=True),
+    'quantidade_alunos': fields.Integer(readonly=True),
+    'professor': fields.Nested(professor_model)
 })
 
-# Modelo para criação/atualização (sem campos calculados)
 turma_input_model = turmas_namespace.model('TurmaInput', {
-    'descricao': fields.String(
-        required=True,
-        description='Nome/descrição da turma',
-        min_length=3,
-        max_length=100
-    ),
-    'professor_id': fields.Integer(
-        required=True,
-        description='ID do professor responsável',
-        min=1
-    ),
-    'ativo': fields.Boolean(
-        default=True,
-        description='Status da turma'
-    )
+    'descricao': fields.String(required=True, min_length=3, max_length=100),
+    'professor_id': fields.Integer(required=True, min=1),
+    'ativo': fields.Boolean(default=True)
 })
 
-# Modelos de resposta
 success_model = turmas_namespace.model('SuccessResponse', {
     'success': fields.Boolean(default=True),
     'message': fields.String,
@@ -55,38 +37,34 @@ success_model = turmas_namespace.model('SuccessResponse', {
 error_model = turmas_namespace.model('ErrorResponse', {
     'success': fields.Boolean(default=False),
     'message': fields.String,
-    'error': fields.String(description='Tipo do erro'),
-    'details': fields.String(description='Detalhes técnicos (opcional)')
+    'error': fields.String,
+    'details': fields.String
 })
 
-# Filtros de consulta
+# Filtros
 filtros_model = turmas_namespace.parser()
-filtros_model.add_argument(
-    'ativo',
-    type=inputs.boolean,
-    required=False,
-    help='Filtrar por status ativo/inativo',
-    location='args'
-)
-filtros_model.add_argument(
-    'professor_id',
-    type=int,
-    required=False,
-    help='Filtrar por ID do professor',
-    location='args'
-)
+filtros_model.add_argument('ativo', type=inputs.boolean, location='args')
+filtros_model.add_argument('professor_id', type=int, location='args')
 
+# ===== Rota principal =====
 @turmas_namespace.route('/')
 class ListaTurmas(Resource):
+    @turmas_namespace.expect(filtros_model)
+    @turmas_namespace.response(200, 'Sucesso', success_model)
+    @turmas_namespace.response(500, 'Erro interno', error_model)
+    def get(self):
+        """Lista todas as turmas com filtros opcionais"""
+        return turma_controller.listar_turmas()
+
     @turmas_namespace.expect(turma_input_model)
-    @turmas_namespace.response(201, 'Success', success_model)
-    @turmas_namespace.response(400, 'Bad Request', error_model)
-    @turmas_namespace.response(500, 'Internal Error', error_model)
+    @turmas_namespace.response(201, 'Turma criada', success_model)
+    @turmas_namespace.response(400, 'Dados inválidos', error_model)
+    @turmas_namespace.response(500, 'Erro interno', error_model)
     def post(self):
         """Cria uma nova turma"""
         return turma_controller.criar_turma()
 
-
+# ===== Rota individual para turmas =====
 @turmas_namespace.route('/<int:id_turma>')
 @turmas_namespace.param('id_turma', 'ID da turma', _in='path', required=True)
 class TurmaResource(Resource):
@@ -106,6 +84,14 @@ class TurmaResource(Resource):
         """Atualiza uma turma existente"""
         return turma_controller.atualizar_turma(id_turma)
 
+    @turmas_namespace.response(204, 'Turma excluída')
+    @turmas_namespace.response(404, 'Turma não encontrada', error_model)
+    @turmas_namespace.response(500, 'Erro interno', error_model)
+    def delete(self, id_turma):
+        """Exclui permanentemente uma turma"""
+        return turma_controller.excluir_turma(id_turma)
+
+# ===== Rota para status da turma =====
 @turmas_namespace.route('/<int:id_turma>/status')
 @turmas_namespace.param('id_turma', 'ID da turma', _in='path', required=True)
 class StatusTurma(Resource):
@@ -115,13 +101,3 @@ class StatusTurma(Resource):
     def patch(self, id_turma):
         """Atualiza o status da turma (ativo/inativo)"""
         return turma_controller.atualizar_status_turma(id_turma)
-
-@turmas_namespace.route('/<int:id_turma>')
-@turmas_namespace.param('id_turma', 'ID da turma', _in='path', required=True)
-class ExcluirTurma(Resource):
-    @turmas_namespace.response(204, 'Turma excluída')
-    @turmas_namespace.response(404, 'Turma não encontrada', error_model)
-    @turmas_namespace.response(500, 'Erro interno', error_model)
-    def delete(self, id_turma):
-        """Exclui permanentemente uma turma"""
-        return turma_controller.excluir_turma(id_turma)

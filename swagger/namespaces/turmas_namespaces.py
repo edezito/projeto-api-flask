@@ -1,16 +1,23 @@
 from flask_restx import Namespace, fields
 
-# Criação do namespace
 turmas_namespace = Namespace('turmas', 
                      description='Operações de gerenciamento de turmas',
-                     path='/turmas')  # Path completo
+                     path='/turmas')
 
-# Modelos
+# Modelo básico de professor
+professor_model = turmas_namespace.model('Professor', {
+    'id': fields.Integer,
+    'nome': fields.String
+})
+
+# Modelo completo de turma
 turma_model = turmas_namespace.model('Turma', {
-    'id': fields.Integer(readOnly=True, description='ID único da turma'),
-    'descricao': fields.String(required=True, description='Nome da turma', example='Turma A'),
-    'professor_id': fields.Integer(required=True, description='ID do professor responsável', example=1),
-    'ativo': fields.Boolean(default=True, description='Status da turma')
+    'id': fields.Integer(readOnly=True),
+    'descricao': fields.String(required=True),
+    'professor_id': fields.Integer(required=True),
+    'ativo': fields.Boolean(default=True),
+    'quantidade_alunos': fields.Integer(readonly=True),
+    'professor': fields.Nested(professor_model)
 })
 
 success_model = turmas_namespace.model('SuccessResponse', {
