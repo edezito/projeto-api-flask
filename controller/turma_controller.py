@@ -15,7 +15,7 @@ class TurmaController:
             'message': message,
             'data': data
         }
-        return response, status_code  # Agora usando o status_code
+        return response, status_code
 
     def _turma_response(self, turma, mensagem, status_code=200):
         return self._handle_response(
@@ -81,19 +81,17 @@ class TurmaController:
             if campo not in dados:
                 return self._handle_response(False, f"Campo obrigatório faltando: {campo}", None, 400)
 
-        # Remove a necessidade de passar session, pois o service já gerencia isso
         turma = self.turma_service.criar_turma(dados)
         return self._turma_response(turma, "Turma criada com sucesso.", 201)
 
     # 🔸 Buscar turma por ID
     @handle_db_errors
-    def buscar_turma_por_id(self, session, id_turma):
-        turma = self.turma_service.buscar_turma_por_id(session, id_turma)
+    def buscar_turma_por_id(self, id_turma):
+        turma = self.turma_service.buscar_turma_por_id(id_turma)
         return self._turma_response(turma, "Turma encontrada com sucesso.")
 
     @handle_db_errors
     def atualizar_turma(self, id_turma):
-        """Atualiza uma turma existente"""
         dados = request.get_json()
         if not dados:
             return self._handle_response(False, "Dados inválidos para atualização.", None, 400)
@@ -103,12 +101,17 @@ class TurmaController:
 
     # 🔸 Excluir turma
     @handle_db_errors
-    def excluir_turma(self, session, id_turma):
-        self.turma_service.excluir_turma(session, id_turma)
-        return '', 204  # Sem conteúdo, padrão para deleção bem-sucedida
+    def excluir_turma(self, id_turma):
+        self.turma_service.excluir_turma(id_turma)
+        return '', 204
 
     # 🔸 Atualizar status (ativo/inativo) da turma
     @handle_db_errors
-    def atualizar_status_turma(self, session, id_turma):
-        turma = self.turma_service.atualizar_status_turma(session, id_turma)
+    def atualizar_status_turma(self, id_turma):
+        dados = request.get_json()
+        if not dados or 'ativo' not in dados:
+            return self._handle_response(False, "Campo 'ativo' obrigatório para atualização.", None, 400)
+
+        ativo = dados['ativo']
+        turma = self.turma_service.atualizar_status_turma(id_turma, ativo)
         return self._turma_response(turma, "Status da turma atualizado com sucesso.")
